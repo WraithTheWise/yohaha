@@ -2571,10 +2571,10 @@ local Library do
 
         Library.Window = function(self, Data)
             Data = Data or { }
+            local SessionStartedAt = os.clock()
 
             local Window = {
                 Name = Data.Name or Data.name or "Window",
-                TimeRemaining = Data.TimeRemaining or 0,
                 SubTitle = Data.SubTitle or Data.subtitle or "LDS13",
                 Icon = Data.Icon or nil,
 
@@ -2806,35 +2806,7 @@ local Library do
                     BackgroundColor3 = FromRGB(26, 30, 36)
                 }):AddToTheme({BackgroundColor3 = "Outline"})
 
-                local Content = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
-
-                Items["AvatarIcon"] = Instances:Create("ImageLabel", {
-                    Parent = Items["Bottom"].Instance,
-                    Name = "\0",
-                    BorderColor3 = FromRGB(0, 0, 0),
-                    AnchorPoint = Vector2New(0, 0.5),
-                    Image = Content,
-                    BackgroundTransparency = 1,
-                    Position = UDim2New(0, 12, 0.5, 0),
-                    Size = UDim2FromOffset(24, 24),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = FromRGB(255, 255, 255)
-                })
-
-                Instances:Create("UICorner", {
-                    Parent = Items["AvatarIcon"].Instance,
-                    Name = "\0",
-                    CornerRadius = UDimNew(1, 0)
-                })
-
-                Instances:Create("UIStroke", {
-                    Parent = Items["AvatarIcon"].Instance,
-                    Name = "\0",
-                    Color = FromRGB(26, 30, 36),
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-                }):AddToTheme({Color = "Outline"})
-
-                Items["Username"] = Instances:Create("TextLabel", {
+                Items["SessionTime"] = Instances:Create("TextLabel", {
                     Parent = Items["Bottom"].Instance,
                     Name = "\0",
                     TextXAlignment = Enum.TextXAlignment.Left,
@@ -2842,7 +2814,7 @@ local Library do
                     FontFace = Library.Font,
                     TextColor3 = FromRGB(200, 200, 200),
                     BorderColor3 = FromRGB(0, 0, 0),
-                    Text = LocalPlayer.Name,
+                    Text = "Session time: 00:00:00",
                     Size = UDim2New(0.5, -56, 0, 15),
                     BackgroundTransparency = 1,
                     Position = UDim2FromOffset(44, 5),
@@ -2850,27 +2822,7 @@ local Library do
                     AutomaticSize = Enum.AutomaticSize.None,
                     TextSize = 12,
                     BackgroundColor3 = FromRGB(255, 255, 255)
-                })  Items["Username"]:AddToTheme({TextColor3 = "Text"})
-
-                Items["TimeRemaining"] = Instances:Create("TextLabel", {
-                    Parent = Items["Bottom"].Instance,
-                    Name = "\0",
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    FontFace = Library.Font,
-                    TextColor3 = FromRGB(255, 255, 255),
-                    TextTransparency = 0.5,
-                    Text = "Time remaining: "..Window.TimeRemaining,
-                    Size = UDim2New(0.5, -56, 0, 13),
-                    BorderColor3 = FromRGB(0, 0, 0),
-                    BorderSizePixel = 0,
-                    BackgroundTransparency = 1,
-                    Position = UDim2FromOffset(44, 21),
-                    TextWrapped = false,
-                    AutomaticSize = Enum.AutomaticSize.None,
-                    TextSize = 10,
-                    BackgroundColor3 = FromRGB(255, 255, 255)
-                })  Items["TimeRemaining"]:AddToTheme({TextColor3 = "Text"})
+                })  Items["SessionTime"]:AddToTheme({TextColor3 = "Text"})
 
                 Items["Search"] = Instances:Create("Frame", {
                     Parent = Items["Bottom"].Instance,
@@ -3080,19 +3032,30 @@ local Library do
                     Text = Library:FormatKey(Library.MenuKeybind) .. " / Show or hide"
                 })
                 Items["KeyHint"]:AddToTheme({TextColor3 = "Dark Text"})
+                -- Also follow direct MenuKeybind assignments made by existing scripts.
+                local LastMenuKeybind = tostring(Library.MenuKeybind)
+                local LastSessionSecond = -1
+                Library:Connect(RunService.Heartbeat, function()
+                    local Elapsed = MathFloor(os.clock() - SessionStartedAt)
+                    if Elapsed ~= LastSessionSecond then
+                        LastSessionSecond = Elapsed
+                        Items["SessionTime"].Instance.Text = StringFormat("Session time: %02d:%02d:%02d",
+                            MathFloor(Elapsed / 3600), MathFloor(Elapsed / 60) % 60, Elapsed % 60)
+                    end
+                    local CurrentKeybind = tostring(Library.MenuKeybind)
+                    if CurrentKeybind ~= LastMenuKeybind then
+                        LastMenuKeybind = CurrentKeybind
+                        Items["KeyHint"].Instance.Text = Library:FormatKey(CurrentKeybind) .. " / Show or hide"
+                    end
+                end)
                 Items["Content"].Instance.Position = UDim2FromOffset(153, 65)
                 Items["Content"].Instance.Size = UDim2New(1, -163, 1, -97)
                 Items["Bottom"].Instance.Size = UDim2New(1, 0, 0, 26)
-                Items["AvatarIcon"].Instance.Visible = false
-                Items["Username"].Instance.Position = UDim2FromOffset(12, 6)
-                Items["Username"].Instance.Size = UDim2New(0.45, -12, 0, 14)
-                Items["Username"].Instance.TextSize = 10
-                Items["Username"]:ChangeItemTheme({TextColor3 = "Dark Text"})
-                Items["Username"].Instance.TextColor3 = Library.Theme["Dark Text"]
-                Items["TimeRemaining"].Instance.AnchorPoint = Vector2New(1, 0)
-                Items["TimeRemaining"].Instance.Position = UDim2New(1, -12, 0, 6)
-                Items["TimeRemaining"].Instance.Size = UDim2New(0.5, -12, 0, 14)
-                Items["TimeRemaining"].Instance.TextXAlignment = Enum.TextXAlignment.Right
+                Items["SessionTime"].Instance.Position = UDim2FromOffset(12, 6)
+                Items["SessionTime"].Instance.Size = UDim2New(0.45, -12, 0, 14)
+                Items["SessionTime"].Instance.TextSize = 10
+                Items["SessionTime"]:ChangeItemTheme({TextColor3 = "Dark Text"})
+                Items["SessionTime"].Instance.TextColor3 = Library.Theme["Dark Text"]
 
 local Settings = {
     IsOpen = false,
@@ -3401,7 +3364,7 @@ local Settings = {
 
             local Page = {
                 Window = self,
-                Name = Data.Name or Data.name or "Page " .. tostring(#self.Pages + 1),
+                Name = Data.Name or Data.name or Data.Title or Data.title or "",
 
                 Icon = Data.Icon or Data.icon or "131145598162617",
                 Columns = Data.Columns or Data.columns or 2,
@@ -3714,6 +3677,15 @@ local Settings = {
 
                 Items = { }
             }
+
+            -- Older callers supplied only an icon. Use their first section's name.
+            if Section.Page.Name == "" then
+                Section.Page.Name = Section.Name
+                Section.Page.Items["NavText"].Instance.Text = string.upper(Section.Name)
+                if Section.Page.Active then
+                    Section.Window.Items["Breadcrumb"].Instance.Text = string.upper(Section.Name)
+                end
+            end
 
             local Items = { } do
                 Items["Section"] = Instances:Create("Frame", {
