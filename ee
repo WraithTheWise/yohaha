@@ -81,6 +81,7 @@ local Library do
         FadeSpeed = 0.12,
         GlowTransparency = 1,
 
+        LayoutWindows = { },
         Pages = { },
         Sections = { },
 
@@ -194,10 +195,10 @@ local Library do
             ["Background"] = FromRGB(8, 10, 15),
             ["Inline"] = FromRGB(10, 12, 17),
             ["Outline"] = FromRGB(25, 28, 35),
-            ["Text"] = FromRGB(192, 194, 201),
-            ["Dark Text"] = FromRGB(111, 115, 127),
+            ["Text"] = FromRGB(205, 207, 215),
+            ["Dark Text"] = FromRGB(128, 133, 148),
             ["Element"] = FromRGB(19, 22, 30),
-            ["Accent"] = FromRGB(193, 35, 77)
+            ["Accent"] = FromRGB(202, 41, 83)
         },
         ["BBot"] = {
             ["Background"] = FromRGB(30, 30, 46),
@@ -1084,6 +1085,7 @@ local Library do
     end
 
     Library.Unload = function(self)
+        for _, Window in self.LayoutWindows do Window:SaveLayout(true) end
         for Index, Value in self.Connections do
             Value.Connection:Disconnect()
         end
@@ -1348,7 +1350,41 @@ local Library do
         Update()
     end
 
+    -- Layout files are separate from control configurations.
+    Library.ValidateLayout = function(self, State)
+        if type(State) ~= "table" or State.Version ~= 1 then return nil end
+        for _, Key in {"X", "Y", "Width", "Height", "Page"} do
+            local Number = State[Key]
+            if type(Number) ~= "number" or Number ~= Number or MathAbs(Number) == math.huge then return nil end
+        end
+        if State.Width <= 0 or State.Height <= 0 or State.Page < 1 then return nil end
+        return {Version = 1, X = State.X, Y = State.Y, Width = State.Width, Height = State.Height,
+            Page = MathFloor(State.Page), Category = type(State.Category) == "string" and State.Category or nil}
+    end
+
+    Library.HighlightMatch = function(self, Text, Query)
+        Text = tostring(Text)
+        local function Escape(Value)
+            return (Value:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
+        end
+        if Query == "" then return Escape(Text) end
+        local Color = self.Theme.Accent
+        local Tag = StringFormat('<font color="rgb(%d,%d,%d)"><b>', MathFloor(Color.R * 255), MathFloor(Color.G * 255), MathFloor(Color.B * 255))
+        local Parts, Cursor = {}, 1
+        while true do
+            local First, Last = StringFind(StringLower(Text), Query, Cursor, true)
+            if not First then TableInsert(Parts, Escape(Text:sub(Cursor))); break end
+            TableInsert(Parts, Escape(Text:sub(Cursor, First - 1)))
+            TableInsert(Parts, Tag .. Escape(Text:sub(First, Last)) .. "</b></font>")
+            Cursor = Last + 1
+        end
+        return TableConcat(Parts)
+    end
+
     Library.ApplySearch = function(self, Window, Query)
+        for Label, State in Window.SearchLabels or {} do
+            if Label.Parent then Label.Text = State.Text; Label.RichText = State.RichText end
+        end
         for Element, Visible in Window.SearchElements or {} do
             if Element.Parent then Element.Visible = Visible end
         end
@@ -1358,31 +1394,44 @@ local Library do
                 Section:SetCollapse(State.Open)
             end
         end
-        Window.SearchElements = {}
-        Window.SearchSections = {}
-        Window.SearchQuery = StringLower(tostring(Query or ""))
+        Window.SearchLabels, Window.SearchElements, Window.SearchSections = {}, {}, {}
+        Window.SearchQuery = StringLower(tostring(Query or "")):match("^%s*(.-)%s*$")
+        local QueryText = Window.SearchQuery
+        Window.Items["SearchClear"].Instance.Visible = tostring(Query or "") ~= ""
+        Window.Items["SearchEmpty"].Instance.Visible = false
+        Window.Items["SearchCount"].Instance.Text = ""
         local Page = self.CurrentPage
-        if not Page or Page.Window ~= Window then return end
-        for _, Column in Page.ColumnsData do
-            Column.Instance.CanvasPosition = Vector2New(0, 0)
+        if not Page or Page.Window ~= Window or QueryText == "" then return end
+        local Matches, Count = {}, 0
+        for _, Column in Page.ColumnsData do Column.Instance.CanvasPosition = Vector2New(0, 0) end
+        local function Highlight(Label)
+            if not Label or Label.RichText then return end
+            Window.SearchLabels[Label] = {Text = Label.Text, RichText = Label.RichText}
+            Label.RichText = true
+            Label.Text = self:HighlightMatch(Label.Text, QueryText)
         end
-        if Window.SearchQuery == "" then return end
-        local Matches = {}
         for _, Entry in self.SearchItems[Page] or {} do
-            local Element = Entry.Element.Instance
-            local Section = Entry.Section
-            local SectionMatch = Section and StringFind(StringLower(Section.Name), Window.SearchQuery, 1, true)
-            local Match = SectionMatch or StringFind(StringLower(tostring(Entry.Name)), Window.SearchQuery, 1, true)
+            local Element, Section = Entry.Element.Instance, Entry.Section
+            local SectionMatch = Section and StringFind(StringLower(Section.Name), QueryText, 1, true)
+            local Match = SectionMatch or StringFind(StringLower(tostring(Entry.Name)), QueryText, 1, true)
             Window.SearchElements[Element] = Element.Visible
             Element.Visible = Element.Visible and Match ~= nil
-            if Section and Element.Visible then Matches[Section] = true end
+            if Element.Visible and (not Section or Section.Items["Section"].Instance.Visible) then
+                Count += 1
+                if Section then Matches[Section] = true end
+                for _, Child in Element:GetChildren() do
+                    if Child:IsA("TextLabel") and Child.Text == tostring(Entry.Name) then Highlight(Child); break end
+                end
+            end
         end
         for _, Section in Page.SectionList do
             local Frame = Section.Items["Section"].Instance
             Window.SearchSections[Section] = {Visible = Frame.Visible, Open = Section.IsOpen}
             Frame.Visible = Frame.Visible and Matches[Section] == true
-            if Frame.Visible then Section:SetCollapse(true) end
+            if Frame.Visible then Section:SetCollapse(true); Highlight(Section.Items["Text"].Instance) end
         end
+        Window.Items["SearchEmpty"].Instance.Visible = Count == 0
+        Window.Items["SearchCount"].Instance.Text = StringFormat("%d match%s on this page", Count, Count == 1 and "" or "es")
     end
 
     Library.PositionPopup = function(self, Popup, Button, Height)
@@ -2585,6 +2634,42 @@ local Library do
 
             Library.CurrentWindow = Window
             Window.Items = { }
+            Window.RememberLayout = Data.RememberLayout ~= false
+            local LayoutKey = tostring(game.GameId) .. ":" .. tostring(Data.LayoutKey or Window.Name)
+            local Hash = 0
+            for Index = 1, #LayoutKey do Hash = (Hash * 31 + string.byte(LayoutKey, Index)) % 2147483647 end
+            Window.LayoutPath = FolderDirectory .. "/Layout_" .. tostring(Hash) .. ".json"
+            if Window.RememberLayout and type(readfile) == "function" then
+                local Ok, State = pcall(function() return HttpService:JSONDecode(readfile(Window.LayoutPath)) end)
+                Window.SavedLayout = Ok and Library:ValidateLayout(State) or nil
+                Window.PendingPage = Window.SavedLayout and Window.SavedLayout.Page or nil
+            end
+
+            function Window:SaveLayout(Force)
+                if not Window.LayoutReady or not Window.RememberLayout or type(writefile) ~= "function" then return end
+                local Frame = Window.Items["MainFrame"].Instance
+                local PageIndex, Category = Window.PendingPage or 1, nil
+                for Index, Page in Window.Pages do
+                    if Page.Active then
+                        PageIndex = Window.PendingPage or Index
+                        Category = Page.PendingCategory or Page.SelectedCategory
+                        break
+                    end
+                end
+                local State = {Version = 1, X = math.round(Frame.Position.X.Offset), Y = math.round(Frame.Position.Y.Offset),
+                    Width = math.round(Frame.Size.X.Offset), Height = math.round(Frame.Size.Y.Offset), Page = PageIndex,
+                    Category = Window.PendingPage and Window.SavedLayout.Category or Category}
+                local Signature = StringFormat("%d:%d:%d:%d:%d:%s", State.X, State.Y, State.Width, State.Height, State.Page, State.Category or "")
+                if Signature ~= Window.LayoutSignature then
+                    Window.LayoutSignature, Window.LayoutChangedAt = Signature, os.clock()
+                end
+                if Signature == Window.SavedSignature or (not Force and os.clock() - Window.LayoutChangedAt < 0.6) then return end
+                InitFolders()
+                local Ok, Error = pcall(function() writefile(Window.LayoutPath, HttpService:JSONEncode(State)) end)
+                Window.LayoutSaveError = not Ok and tostring(Error) or nil
+                Window.SavedSignature = Signature
+            end
+            TableInsert(Library.LayoutWindows, Window)
 
             local Items = Window.Items do
                 if IsMobile then
@@ -3036,6 +3121,7 @@ local Library do
                 local LastMenuKeybind = tostring(Library.MenuKeybind)
                 local LastSessionSecond = -1
                 Library:Connect(RunService.Heartbeat, function()
+                    Window:SaveLayout(false)
                     local Elapsed = MathFloor(os.clock() - SessionStartedAt)
                     if Elapsed ~= LastSessionSecond then
                         LastSessionSecond = Elapsed
@@ -3056,6 +3142,51 @@ local Library do
                 Items["SessionTime"].Instance.TextSize = 10
                 Items["SessionTime"]:ChangeItemTheme({TextColor3 = "Dark Text"})
                 Items["SessionTime"].Instance.TextColor3 = Library.Theme["Dark Text"]
+
+                Items["Input"].Instance.Size = UDim2New(1, -55, 1, 0)
+                Items["Input"].Instance.PlaceholderText = "Search this page..."
+                Items["SearchClear"] = Instances:Create("TextButton", {
+                    Parent = Items["Search"].Instance, BorderSizePixel = 0, BackgroundTransparency = 1,
+                    AnchorPoint = Vector2New(1, 0), Position = UDim2New(1, -2, 0, 0), Size = UDim2FromOffset(23, 24),
+                    FontFace = Library.Font, TextSize = 14, Text = "×", AutoButtonColor = false, Visible = false, ZIndex = 3
+                })
+                Items["SearchClear"]:AddToTheme({TextColor3 = "Dark Text"})
+                Items["SearchClear"]:Connect("Activated", function()
+                    Items["Input"].Instance.Text = ""
+                    Items["Input"].Instance:CaptureFocus()
+                end)
+                Library:Connect(UserInputService.InputBegan, function(Input)
+                    if Input.KeyCode == Enum.KeyCode.Escape and Items["Input"].Instance:IsFocused() then
+                        Items["Input"].Instance.Text = ""
+                        Items["Input"].Instance:ReleaseFocus()
+                    end
+                end)
+                Items["SearchEmpty"] = Instances:Create("TextLabel", {
+                    Parent = Items["Content"].Instance, BorderSizePixel = 0, BackgroundTransparency = 1,
+                    Position = UDim2New(0, 12, 0.35, 0), Size = UDim2New(1, -24, 0, 52),
+                    FontFace = Library.Font, TextSize = 13, TextWrapped = true,
+                    Text = "No matching settings\nTry a different search or clear the filter.", Visible = false, ZIndex = 4
+                })
+                Items["SearchEmpty"]:AddToTheme({TextColor3 = "Dark Text"})
+                Items["SearchCount"] = Instances:Create("TextLabel", {
+                    Parent = Items["Bottom"].Instance, BorderSizePixel = 0, BackgroundTransparency = 1,
+                    AnchorPoint = Vector2New(1, 0), Position = UDim2New(1, -12, 0, 6), Size = UDim2New(0.5, -12, 0, 14),
+                    FontFace = Library.Font, TextSize = 10, Text = "", TextXAlignment = Enum.TextXAlignment.Right
+                })
+                Items["SearchCount"]:AddToTheme({TextColor3 = "Dark Text"})
+                Items["SearchBorder"] = Instances:Create("UIStroke", {
+                    Parent = Items["Search"].Instance, Thickness = 1, Transparency = 0.6,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+                })
+                Items["SearchBorder"]:AddToTheme({Color = "Outline"})
+                Items["Input"]:Connect("Focused", function()
+                    Items["SearchBorder"]:ChangeItemTheme({Color = "Accent"})
+                    Items["SearchBorder"]:Tween(nil, {Color = Library.Theme.Accent, Transparency = 0.3})
+                end)
+                Items["Input"]:Connect("FocusLost", function()
+                    Items["SearchBorder"]:ChangeItemTheme({Color = "Outline"})
+                    Items["SearchBorder"]:Tween(nil, {Color = Library.Theme.Outline, Transparency = 0.6})
+                end)
 
 local Settings = {
     IsOpen = false,
@@ -3349,6 +3480,19 @@ local Settings = {
             end)
 
             Window:SetCenter()
+            if Window.SavedLayout then
+                local State = Window.SavedLayout
+                local Viewport = Workspace.CurrentCamera.ViewportSize
+                local Scale = IsMobile and 0.7 or 1
+                local MaxWidth, MaxHeight = math.max(1, Viewport.X / Scale - 16), math.max(1, Viewport.Y / Scale - 48)
+                local Width = MathClamp(State.Width, math.min(540, MaxWidth), MaxWidth)
+                local Height = MathClamp(State.Height, math.min(380, MaxHeight), MaxHeight)
+                Items["MainFrame"].Instance.Size = UDim2FromOffset(Width, Height)
+                Items["MainFrame"].Instance.Position = UDim2FromOffset(
+                    MathClamp(State.X, 0, math.max(0, Viewport.X / Scale - Width)),
+                    MathClamp(State.Y, 0, math.max(0, Viewport.Y / Scale - Height - 36)))
+            end
+            Window.LayoutReady = true
             task.wait()
             Window:SetOpen(true)
 
@@ -3365,6 +3509,8 @@ local Settings = {
             local Page = {
                 Window = self,
                 Name = Data.Name or Data.name or Data.Title or Data.title or "",
+                LayoutIndex = #self.Pages + 1,
+                PendingCategory = self.SavedLayout and self.SavedLayout.Page == #self.Pages + 1 and self.SavedLayout.Category or nil,
 
                 Icon = Data.Icon or Data.icon or "131145598162617",
                 Columns = Data.Columns or Data.columns or 2,
@@ -3385,7 +3531,7 @@ local Settings = {
                     BorderColor3 = FromRGB(0, 0, 0),
                     Text = "",
                     AutoButtonColor = false,
-                    Size = UDim2New(1, 0, 0, 28),
+                    Size = UDim2New(1, 0, 0, 30),
                     BorderSizePixel = 0,
                     TextSize = 14,
                     BackgroundColor3 = FromRGB(13, 15, 18)
@@ -3478,7 +3624,7 @@ local Settings = {
                 Instances:Create("UIListLayout", {
                     Parent = Items["LeftColumn"].Instance,
                     Name = "\0",
-                    Padding = UDimNew(0, 10),
+                    Padding = UDimNew(0, 12),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
 
@@ -3513,7 +3659,7 @@ local Settings = {
                 Instances:Create("UIListLayout", {
                     Parent = Items["RightColumn"].Instance,
                     Name = "\0",
-                    Padding = UDimNew(0, 10),
+                    Padding = UDimNew(0, 12),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
 
@@ -3543,10 +3689,15 @@ local Settings = {
                 })
 
 
+                Items["NavMarker"] = Instances:Create("Frame", {
+                    Parent = Items["Inactive"].Instance, BorderSizePixel = 0, Size = UDim2FromOffset(2, 16),
+                    Position = UDim2New(0, 0, 0.5, -8), Visible = false, ZIndex = 3
+                })
+                Items["NavMarker"]:AddToTheme({BackgroundColor3 = "Accent"})
                 Items["NavText"] = Instances:Create("TextLabel", {
                     Parent = Items["Inactive"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
                     Position = UDim2FromOffset(29, 0), Size = UDim2New(1, -35, 1, 0),
-                    FontFace = Library.FontMedium, TextSize = 10, Text = string.upper(Page.Name),
+                    FontFace = Library.FontMedium, TextSize = 11, Text = string.upper(Page.Name),
                     TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2
                 })
                 Items["NavText"]:AddToTheme({TextColor3 = "Dark Text"})
@@ -3577,60 +3728,29 @@ local Settings = {
             Library.SearchItems[Page] = { }
 
             function Page:Turn(Bool)
-                if Debounce then
-                    return
+                if Bool and Library.CurrentPage and Library.CurrentPage ~= Page and Library.CurrentPage.Window == Page.Window then
+                    Library.CurrentPage:Turn(false)
                 end
-
                 Page.Active = Bool
-                Items["Categories"].Instance.Visible = Bool
-                Items["NavText"]:ChangeItemTheme({TextColor3 = Bool and "Text" or "Dark Text"})
-                Items["NavText"]:Tween(nil, {TextColor3 = Bool and Library.Theme.Text or Library.Theme["Dark Text"]})
-                if Bool then
-                    Page.Window.Items["Breadcrumb"].Instance.Text = string.upper(Page.Name)
-                    Page.Window.Items["PageTitle"].Instance.Text = Page.SelectedCategory or Page.Name
-                end
-
-                Debounce = true
                 Items["Page"].Instance.Visible = Bool
                 Items["Page"].Instance.Parent = Bool and Page.Window.Items["Content"].Instance or Library.UnusedHolder.Instance
-
-                if Page.Active then
-                    Items["Icon"]:ChangeItemTheme({ImageColor3 = "Accent"})
-                    Items["Accent"]:Tween(nil, {Size = UDim2New(1, 0, 1, 0), BackgroundTransparency = 0.88})
-                    Items["Icon"]:Tween(nil, {ImageColor3 = Library.Theme.Accent, ImageTransparency = 0})
-                    Items["Page"].Instance.Position = UDim2FromOffset(0, 0)
+                Items["Categories"].Instance.Visible = Bool
+                Items["NavMarker"].Instance.Visible = Bool
+                Items["NavText"]:ChangeItemTheme({TextColor3 = Bool and "Text" or "Dark Text"})
+                Items["NavText"]:Tween(nil, {TextColor3 = Bool and Library.Theme.Text or Library.Theme["Dark Text"]})
+                Items["Icon"]:ChangeItemTheme({ImageColor3 = Bool and "Accent" or "Text"})
+                Items["Icon"]:Tween(nil, {ImageColor3 = Bool and Library.Theme.Accent or Library.Theme.Text, ImageTransparency = Bool and 0 or 0.4})
+                Items["Accent"]:Tween(nil, {Size = UDim2New(1, 0, 1, 0), BackgroundTransparency = Bool and 0.9 or 1})
+                if Bool then
                     Library.CurrentPage = Page
+                    Page.Window.Items["Breadcrumb"].Instance.Text = string.upper(Page.Name)
+                    Page.Window.Items["PageTitle"].Instance.Text = Page.SelectedCategory or Page.Name
                     Library:ApplySearch(Page.Window, Page.Window.Items["Input"].Instance.Text)
                 else
-                    Items["Icon"]:ChangeItemTheme({ImageColor3 = "Text"})
-                    Items["Accent"]:Tween(nil, {BackgroundTransparency = 1})
-                    Items["Icon"]:Tween(nil, {ImageColor3 = Library.Theme.Text, ImageTransparency = 0.4})
-                end
-
-                local AllInstances = Items["Page"].Instance:GetDescendants()
-                TableInsert(AllInstances, Items["Page"].Instance)
-
-                local NewTween
-
-                for Index, Value in AllInstances do
-                    local TransparencyProperty = Tween:GetProperty(Value)
-
-                    if not TransparencyProperty then
-                        continue
-                    end
-
-                    if type(TransparencyProperty) == "table" then
-                        for _, Property in TransparencyProperty do
-                            NewTween = Tween:FadeItem(Value, Property, Bool, Library.FadeSpeed)
-                        end
-                    else
-                        NewTween = Tween:FadeItem(Value, TransparencyProperty, Bool, Library.FadeSpeed)
+                    for _, Popup in Library.OpenFrames do
+                        if Popup.Page == Page then Popup:SetOpen(false) end
                     end
                 end
-
-                Library:Connect(NewTween.Tween.Completed, function()
-                    Debounce = false
-                end)
             end
 
             local PageSearchData = Library.SearchItems[Page]
@@ -3646,6 +3766,7 @@ local Settings = {
 
             Items["Inactive"]:Connect("InputBegan", function(Input)
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+                    Page.Window.PendingPage = nil
                     for Index, Value in Page.Window.Pages do
                         if Value == Page and Page.Active then
                             return
@@ -3656,11 +3777,13 @@ local Settings = {
                 end
             end)
 
-            if #Page.Window.Pages == 0 then
+            TableInsert(Page.Window.Pages, Page)
+            if Page.Window.PendingPage == Page.LayoutIndex then
+                Page.Window.PendingPage = nil
+                Page:Turn(true)
+            elseif #Page.Window.Pages == 1 then
                 Page:Turn(true)
             end
-
-            TableInsert(Page.Window.Pages, Page)
             return setmetatable(Page, Library.Pages)
         end
 
@@ -3844,6 +3967,10 @@ local Settings = {
                 end)
 
 
+                Instances:Create("Frame", {
+                    Parent = Items["Section"].Instance, BorderSizePixel = 0,
+                    Position = UDim2FromOffset(10, 30), Size = UDim2New(1, -20, 0, 1), BackgroundTransparency = 0.25
+                }):AddToTheme({BackgroundColor3 = "Outline"})
                 Items["IconBackground"].Instance.Visible = false
                 Items["Chevron"].Instance.ImageTransparency = 0.75
                 Items["Category"] = Instances:Create("TextButton", {
@@ -3854,9 +3981,22 @@ local Settings = {
                     AutoButtonColor = false, LayoutOrder = #Section.Page.SectionList
                 })
                 Items["Category"]:AddToTheme({TextColor3 = "Dark Text", BackgroundColor3 = "Accent"})
+                Items["CategoryMarker"] = Instances:Create("Frame", {
+                    Parent = Items["Category"].Instance, BorderSizePixel = 0, Size = UDim2FromOffset(2, 12),
+                    Position = UDim2New(0, 0, 0.5, -6), Visible = false
+                })
+                Items["CategoryMarker"]:AddToTheme({BackgroundColor3 = "Accent"})
+                Items["Category"]:OnHover(function()
+                    if Section.Page.SelectedCategory ~= Section.Name then Items["Category"]:Tween(nil, {BackgroundTransparency = 0.96}) end
+                end)
+                Items["Category"]:OnHoverLeave(function()
+                    Items["Category"]:Tween(nil, {BackgroundTransparency = Section.Page.SelectedCategory == Section.Name and 0.92 or 1})
+                end)
                 local function SelectCategory(Scroll)
                     Section.Page.SelectedCategory = Section.Name
+                    if Scroll or Section.Page.PendingCategory == Section.Name then Section.Page.PendingCategory = nil end
                     for _, Other in Section.Page.SectionList do
+                        Other.Items["CategoryMarker"].Instance.Visible = Other == Section
                         local Button = Other.Items["Category"]
                         if Button then
                             Button.Instance.BackgroundTransparency = Other == Section and 0.92 or 1
@@ -3864,6 +4004,7 @@ local Settings = {
                             Button.Instance.TextColor3 = Other == Section and Library.Theme.Text or Library.Theme["Dark Text"]
                         end
                     end
+                    Items["CategoryMarker"].Instance.Visible = true
                     Items["Category"].Instance.BackgroundTransparency = 0.92
                     Items["Category"]:ChangeItemTheme({TextColor3 = "Text", BackgroundColor3 = "Accent"})
                     Items["Category"].Instance.TextColor3 = Library.Theme.Text
@@ -3878,7 +4019,7 @@ local Settings = {
                     end
                 end
                 Items["Category"]:Connect("Activated", function() SelectCategory(true) end)
-                if #Section.Page.SectionList == 0 then SelectCategory(false) end
+                if #Section.Page.SectionList == 0 or Section.Page.PendingCategory == Section.Name then SelectCategory(false) end
 
                 Section.Items = Items
             end
@@ -3991,7 +4132,7 @@ local Settings = {
                     Position = UDim2New(0, 0, 0, 0),
                     BorderSizePixel = 0,
                     AutomaticSize = Enum.AutomaticSize.None,
-                    TextSize = 11,
+                    TextSize = 12,
                     BackgroundColor3 = FromRGB(255, 255, 255)
                 })  Items["Text"]:AddToTheme({TextColor3 = "Text"})
 
@@ -4321,7 +4462,7 @@ local Settings = {
                     Size = UDim2New(1, -58, 0, 18),
                     BorderSizePixel = 0,
                     AutomaticSize = Enum.AutomaticSize.None,
-                    TextSize = 11,
+                    TextSize = 12,
                     BackgroundColor3 = FromRGB(255, 255, 255)
                 })  Items["Text"]:AddToTheme({TextColor3 = "Text"})
 
@@ -4555,7 +4696,7 @@ local Settings = {
                     Position = UDim2New(0, 0, 1, 0),
                     Size = UDim2New(1, 0, 0, 24),
                     BorderSizePixel = 0,
-                    TextSize = 14,
+                    TextSize = 11,
                     BackgroundColor3 = FromRGB(28, 32, 38)
                 })  Items["RealDropdown"]:AddToTheme({BackgroundColor3 = "Element"})
 
@@ -4571,7 +4712,7 @@ local Settings = {
                     FontFace = Library.Font,
                     TextColor3 = FromRGB(100, 100, 100),
                     BorderColor3 = FromRGB(0, 0, 0),
-                    Text = "...",
+                    Text = "Select...",
                     Size = UDim2New(1, -38, 1, 0),
                     AnchorPoint = Vector2New(0, 0.5),
                     Position = UDim2New(0, 10, 0.5, 0),
@@ -4617,7 +4758,7 @@ local Settings = {
                     Position = UDim2New(0, 31, 0, 170),
                     Size = UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, 127),
                     BorderSizePixel = 0,
-                    TextSize = 14,
+                    TextSize = 11,
                     BackgroundColor3 = FromRGB(13, 15, 18)
                 })  Items["OptionHolder"]:AddToTheme({BackgroundColor3 = "Background"})
 
@@ -4637,10 +4778,10 @@ local Settings = {
                 Items["Holder"] = Instances:Create("ScrollingFrame", {
                     Parent = Items["OptionHolder"].Instance,
                     Name = "\0",
-                    ScrollBarImageColor3 = FromRGB(0, 0, 0),
+                    ScrollBarImageColor3 = Library.Theme["Dark Text"],
                     Active = true,
                     AutomaticCanvasSize = Enum.AutomaticSize.Y,
-                    ScrollBarThickness = 0,
+                    ScrollBarThickness = 2,
                     Size = UDim2New(1, -14, 1, -14),
                     BackgroundTransparency = 1,
                     Position = UDim2New(0, 7, 0, 7),
@@ -4666,6 +4807,13 @@ local Settings = {
                     PaddingLeft = UDimNew(0, 1)
                 })
 
+                Items["NoOptions"] = Instances:Create("TextLabel", {
+                    Parent = Items["Holder"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
+                    Size = UDim2New(1, -4, 0, 26), FontFace = Library.Font, TextSize = 11,
+                    Text = "No matching options", Visible = false, LayoutOrder = -1
+                })
+                Items["NoOptions"]:AddToTheme({TextColor3 = "Dark Text"})
+                Items["Holder"]:AddToTheme({ScrollBarImageColor3 = "Dark Text"})
                 Items["RealDropdown"]:OnHover(function()
                     Items["Text"]:ChangeItemTheme({TextColor3 = "Text"})
                     Items["Value"]:ChangeItemTheme({TextColor3 = "Text"})
@@ -4694,76 +4842,46 @@ local Settings = {
             local Debounce = false
             local RenderStepped
 
+            local PopupRevision = 0
             function Dropdown:SetOpen(Bool)
-                if Debounce then
-                    return
-                end
-
+                if Dropdown.IsOpen == Bool then return end
                 Dropdown.IsOpen = Bool
-
-                Debounce = true
-
-                if Dropdown.IsOpen then
+                PopupRevision += 1
+                local Revision = PopupRevision
+                Items["Icon"]:Tween(nil, {Rotation = Bool and 180 or 0})
+                if RenderStepped then RenderStepped.Connection:Disconnect(); RenderStepped = nil end
+                if Bool then
+                    local Viewport = Workspace.CurrentCamera.ViewportSize
+                    local Count = 0
+                    for _ in Dropdown.Options do Count += 1 end
+                    local Height = math.min(Dropdown.MaxSize, math.max(44, Count * 29 + 14), math.max(44, Viewport.Y - 64))
                     Items["OptionHolder"].Instance.Visible = true
-                    Items["OptionHolder"].Instance.Size = UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, 0)
-
-                    RenderStepped = Library:Connect(RunService.RenderStepped, function()
-                        local DropdownPos = Items["RealDropdown"].Instance.AbsolutePosition
-                        local DropdownSize = Items["RealDropdown"].Instance.AbsoluteSize
-                        Items["OptionHolder"].Instance.Position = UDim2New(0, DropdownPos.X, 0, DropdownPos.Y + DropdownSize.Y + 5)
-                    end)
-
-                    Items["OptionHolder"]:Tween(nil, {Size = UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, Dropdown.MaxSize)})
-
-                    for Index, Value in Library.OpenFrames do
-                        if Value ~= Dropdown and not Dropdown.Section.IsSettings then
-                            Value:SetOpen(false)
+                    Items["OptionHolder"].Instance.ClipsDescendants = true
+                    Items["Holder"].Instance.CanvasPosition = Vector2New(0, 0)
+                    Items["OptionHolder"].Instance.Size = UDim2FromOffset(Items["RealDropdown"].Instance.AbsoluteSize.X, 0)
+                    local function Position()
+                        if not Dropdown.Window.IsOpen or not Dropdown.Page.Active or not Items["Dropdown"].Instance.Visible or not Dropdown.Section.IsOpen then
+                            Dropdown:SetOpen(false); return
                         end
+                        local Popup = Items["OptionHolder"].Instance
+                        Popup.Size = UDim2FromOffset(math.min(Items["RealDropdown"].Instance.AbsoluteSize.X, Viewport.X - 16), Popup.Size.Y.Offset)
+                        Library:PositionPopup(Popup, Items["RealDropdown"].Instance, Height)
                     end
-
+                    Position()
+                    if not Dropdown.IsOpen then return end
+                    RenderStepped = Library:Connect(RunService.RenderStepped, Position)
+                    Items["OptionHolder"]:Tween(nil, {Size = UDim2FromOffset(Items["OptionHolder"].Instance.Size.X.Offset, Height)})
+                    Items["NoOptions"].Instance.Visible = Count == 0
+                    for _, Other in Library.OpenFrames do if Other ~= Dropdown then Other:SetOpen(false) end end
                     Library.OpenFrames[Dropdown] = Dropdown
                 else
-                    if Library.OpenFrames[Dropdown] then
-                        Library.OpenFrames[Dropdown] = nil
-                    end
+                    Library.OpenFrames[Dropdown] = nil
 
-                    if RenderStepped then
-                        RenderStepped.Connection:Disconnect()
-                        RenderStepped = nil
-                    end
-
-                    Items["OptionHolder"]:Tween(nil, {Size = UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, 0)})
+                    local Closing = Items["OptionHolder"]:Tween(nil, {Size = UDim2FromOffset(Items["OptionHolder"].Instance.Size.X.Offset, 0)})
+                    Library:Connect(Closing.Tween.Completed, function()
+                        if Revision == PopupRevision and not Dropdown.IsOpen then Items["OptionHolder"].Instance.Visible = false end
+                    end)
                 end
-
-                local Descendants = Items["OptionHolder"].Instance:GetDescendants()
-                TableInsert(Descendants, Items["OptionHolder"].Instance)
-
-                local NewTween
-
-                for Index, Value in Descendants do
-                    local TransparencyProperty = Tween:GetProperty(Value)
-
-                    if not TransparencyProperty then
-                        continue
-                    end
-
-                    if not Value.ClassName:find("UI") then
-                        Value.ZIndex = Dropdown.IsOpen and 3 or 1
-                    end
-
-                    if type(TransparencyProperty) == "table" then
-                        for _, Property in TransparencyProperty do
-                            NewTween = Tween:FadeItem(Value, Property, Bool, Library.FadeSpeed)
-                        end
-                    else
-                        NewTween = Tween:FadeItem(Value, TransparencyProperty, Bool, Library.FadeSpeed)
-                    end
-                end
-
-                NewTween.Tween.Completed:Connect(function()
-                    Debounce = false
-                    Items["OptionHolder"].Instance.Visible = Dropdown.IsOpen
-                end)
             end
 
             function Dropdown:Set(Option)
@@ -4772,6 +4890,7 @@ local Settings = {
                         return
                     end
 
+                    for _, OptionData in Dropdown.Options do OptionData:Toggle("Inactive") end
                     Dropdown.Value = Option
                     Library.Flags[Dropdown.Flag] = Option
 
@@ -4794,6 +4913,7 @@ local Settings = {
 
                     local OptionData = Dropdown.Options[Option]
 
+                    for _, OptionData in Dropdown.Options do OptionData:Toggle("Inactive") end
                     Dropdown.Value = Option
                     Library.Flags[Dropdown.Flag] = Option
 
@@ -4825,9 +4945,9 @@ local Settings = {
                     Text = "",
                     AutoButtonColor = false,
                     BackgroundTransparency = 1,
-                    Size = UDim2New(1, 0, 0, 20),
+                    Size = UDim2New(1, -3, 0, 26),
                     BorderSizePixel = 0,
-                    TextSize = 14,
+                    TextSize = 11,
                     BackgroundColor3 = FromRGB(184, 212, 255)
                 })  OptionButton:AddToTheme({BackgroundColor3 = "Accent"})
 
@@ -4851,15 +4971,23 @@ local Settings = {
                     BorderColor3 = FromRGB(0, 0, 0),
                     Text = Option,
                     AnchorPoint = Vector2New(0, 0.5),
-                    Size = UDim2New(0, 0, 0, 15),
+                    Size = UDim2New(1, -38, 0, 18),
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    TextXAlignment = Enum.TextXAlignment.Left,
                     BackgroundTransparency = 1,
                     Position = UDim2New(0, 8, 0.5, 0),
                     BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.X,
-                    TextSize = 14,
+                    AutomaticSize = Enum.AutomaticSize.None,
+                    TextSize = 11,
                     BackgroundColor3 = FromRGB(255, 255, 255)
                 })  OptionText:AddToTheme({TextColor3 = "Text"})
 
+                local SelectionMark = Instances:Create("TextLabel", {
+                    Parent = OptionButton.Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
+                    AnchorPoint = Vector2New(1, 0), Position = UDim2New(1, -6, 0, 0), Size = UDim2New(0, 16, 1, 0),
+                    FontFace = Library.FontMedium, TextSize = 12, Text = "✓", Visible = false
+                })
+                SelectionMark:AddToTheme({TextColor3 = "Accent"})
                 local OptionData = {
                     Text = OptionText,
                     Button = OptionButton,
@@ -4869,10 +4997,19 @@ local Settings = {
 
                 function OptionData:Toggle(Value)
                     local Active = Value == "Active"
+                    OptionData.Selected = Active
+                    SelectionMark.Instance.Visible = Active
                     OptionData.Text:ChangeItemTheme({TextColor3 = Active and "Accent" or "Text"})
                     OptionData.Text:Tween(nil, {TextColor3 = Active and Library.Theme.Accent or Library.Theme.Text})
                     OptionData.Button:Tween(nil, {BackgroundTransparency = Active and 0.88 or 1})
                 end
+
+                OptionButton:OnHover(function()
+                    OptionButton:Tween(nil, {BackgroundTransparency = OptionData.Selected and 0.88 or 0.95})
+                end)
+                OptionButton:OnHoverLeave(function()
+                    OptionButton:Tween(nil, {BackgroundTransparency = OptionData.Selected and 0.88 or 1})
+                end)
 
                 function OptionData:Set()
                     OptionData.Selected = not OptionData.Selected
@@ -4890,7 +5027,7 @@ local Settings = {
 
                         Library.Flags[Dropdown.Flag] = Dropdown.Value
 
-                        local TextFormat = #Dropdown.Value > 0 and TableConcat(Dropdown.Value, ", ") or "..."
+                        local TextFormat = #Dropdown.Value > 0 and TableConcat(Dropdown.Value, ", ") or "Select..."
                         Items["Value"].Instance.Text = TextFormat
                     else
                         if OptionData.Selected then
@@ -4915,7 +5052,7 @@ local Settings = {
                             OptionData.Selected = false
                             OptionData:Toggle("Inactive")
 
-                            Items["Value"].Instance.Text = "..."
+                            Items["Value"].Instance.Text = "Select..."
                         end
                     end
 
@@ -4927,6 +5064,7 @@ local Settings = {
                 OptionData.Button:Connect("InputBegan", function(Input)
                     if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
                         OptionData:Set()
+                        if not Dropdown.Multi then Dropdown:SetOpen(false) end
                     end
                 end)
 
@@ -4970,9 +5108,10 @@ local Settings = {
             end)
 
             Library:Connect(UserInputService.InputBegan, function(Input)
+                if Input.KeyCode == Enum.KeyCode.Escape and Dropdown.IsOpen then Dropdown:SetOpen(false); return end
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
                     if Dropdown.IsOpen then
-                        if Library:IsMouseOverFrame(Items["OptionHolder"]) then
+                        if Library:IsMouseOverFrame(Items["OptionHolder"]) or Library:IsMouseOverFrame(Items["RealDropdown"]) then
                             return
                         end
 
@@ -4983,8 +5122,7 @@ local Settings = {
 
             Items["RealDropdown"]:Connect("Changed", function(Property)
                 if Property == "AbsolutePosition" and Dropdown.IsOpen then
-                    Dropdown.IsOpen = not Library:IsClipped(Items["OptionHolder"].Instance, Dropdown.Section.Items["Section"].Instance.Parent)
-                    Items["OptionHolder"].Instance.Visible = Dropdown.IsOpen
+                    if Library:IsClipped(Items["RealDropdown"].Instance, Dropdown.Section.Items["Section"].Instance.Parent) then Dropdown:SetOpen(false) end
                 end
             end)
 
@@ -5066,7 +5204,7 @@ local Settings = {
                     Position = UDim2New(0, 0, 1, 0),
                     Size = UDim2New(1, 0, 0, 24),
                     BorderSizePixel = 0,
-                    TextSize = 14,
+                    TextSize = 11,
                     BackgroundColor3 = FromRGB(28, 32, 38)
                 })  Items["RealDropdown"]:AddToTheme({BackgroundColor3 = "Element"})
 
@@ -5082,7 +5220,7 @@ local Settings = {
                     FontFace = Library.Font,
                     TextColor3 = FromRGB(100, 100, 100),
                     BorderColor3 = FromRGB(0, 0, 0),
-                    Text = "...",
+                    Text = "Select...",
                     Size = UDim2New(1, -38, 1, 0),
                     AnchorPoint = Vector2New(0, 0.5),
                     Position = UDim2New(0, 10, 0.5, 0),
@@ -5128,7 +5266,7 @@ local Settings = {
                     Position = UDim2New(0, 31, 0, 170),
                     Size = UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, 127),
                     BorderSizePixel = 0,
-                    TextSize = 14,
+                    TextSize = 11,
                     BackgroundColor3 = FromRGB(13, 15, 18)
                 })  Items["OptionHolder"]:AddToTheme({BackgroundColor3 = "Background"})
 
@@ -5157,7 +5295,7 @@ local Settings = {
                     Size = UDim2New(1, -14, 0, 24),
                     BackgroundColor3 = FromRGB(28, 32, 38),
                     BorderSizePixel = 0,
-                    TextSize = 14,
+                    TextSize = 11,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     ClearTextOnFocus = false
                 })  Items["SearchBox"]:AddToTheme({BackgroundColor3 = "Element", TextColor3 = "Text", PlaceholderColor3 = "Text"})
@@ -5177,10 +5315,10 @@ local Settings = {
                 Items["Holder"] = Instances:Create("ScrollingFrame", {
                     Parent = Items["OptionHolder"].Instance,
                     Name = "\0",
-                    ScrollBarImageColor3 = FromRGB(0, 0, 0),
+                    ScrollBarImageColor3 = Library.Theme["Dark Text"],
                     Active = true,
                     AutomaticCanvasSize = Enum.AutomaticSize.Y,
-                    ScrollBarThickness = 0,
+                    ScrollBarThickness = 2,
                     Size = UDim2New(1, -14, 1, -45),
                     BackgroundTransparency = 1,
                     Position = UDim2New(0, 7, 0, 38),
@@ -5206,6 +5344,13 @@ local Settings = {
                     PaddingLeft = UDimNew(0, 1)
                 })
 
+                Items["NoOptions"] = Instances:Create("TextLabel", {
+                    Parent = Items["Holder"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
+                    Size = UDim2New(1, -4, 0, 26), FontFace = Library.Font, TextSize = 11,
+                    Text = "No matching options", Visible = false, LayoutOrder = -1
+                })
+                Items["NoOptions"]:AddToTheme({TextColor3 = "Dark Text"})
+                Items["Holder"]:AddToTheme({ScrollBarImageColor3 = "Dark Text"})
                 Items["RealDropdown"]:OnHover(function()
                     Items["Text"]:ChangeItemTheme({TextColor3 = "Text"})
                     Items["Value"]:ChangeItemTheme({TextColor3 = "Text"})
@@ -5224,12 +5369,17 @@ local Settings = {
             end
 
             function Dropdown:FilterOptions()
-                local query = StringLower(Dropdown.SearchText)
-
-                for name, option in Dropdown.Options do
-                    local match = StringFind(StringLower(name), query)
-                    option.Button.Instance.Visible = match ~= nil or query == ""
+                local Query = StringLower(Dropdown.SearchText):match("^%s*(.-)%s*$")
+                local Count = 0
+                for Name, Option in Dropdown.Options do
+                    local Match = Query == "" or StringFind(StringLower(tostring(Name)), Query, 1, true) ~= nil
+                    Option.Button.Instance.Visible = Match
+                    Option.Text.Instance.RichText = true
+                    Option.Text.Instance.Text = Library:HighlightMatch(tostring(Name), Query)
+                    if Match then Count += 1 end
                 end
+                Items["NoOptions"].Instance.Visible = Count == 0
+                Items["Holder"].Instance.CanvasPosition = Vector2New(0, 0)
             end
 
             function Dropdown:Get()
@@ -5243,85 +5393,49 @@ local Settings = {
             local Debounce = false
             local RenderStepped
 
+            local PopupRevision = 0
             function Dropdown:SetOpen(Bool)
-                if Debounce then
-                    return
-                end
-
+                if Dropdown.IsOpen == Bool then return end
                 Dropdown.IsOpen = Bool
-
-                Debounce = true
-
-                if Dropdown.IsOpen then
+                PopupRevision += 1
+                local Revision = PopupRevision
+                Items["Icon"]:Tween(nil, {Rotation = Bool and 180 or 0})
+                if RenderStepped then RenderStepped.Connection:Disconnect(); RenderStepped = nil end
+                if Bool then
+                    local Viewport = Workspace.CurrentCamera.ViewportSize
+                    local Count = 0
+                    for _ in Dropdown.Options do Count += 1 end
+                    local Height = math.min(Dropdown.MaxSize, math.max(78, Count * 29 + 45), math.max(44, Viewport.Y - 64))
                     Items["OptionHolder"].Instance.Visible = true
-                    Items["OptionHolder"].Instance.Size = UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, 0)
-
+                    Items["OptionHolder"].Instance.ClipsDescendants = true
+                    Items["Holder"].Instance.CanvasPosition = Vector2New(0, 0)
+                    Items["OptionHolder"].Instance.Size = UDim2FromOffset(Items["RealDropdown"].Instance.AbsoluteSize.X, 0)
+                    local function Position()
+                        if not Dropdown.Window.IsOpen or not Dropdown.Page.Active or not Items["Dropdown"].Instance.Visible or not Dropdown.Section.IsOpen then
+                            Dropdown:SetOpen(false); return
+                        end
+                        local Popup = Items["OptionHolder"].Instance
+                        Popup.Size = UDim2FromOffset(math.min(Items["RealDropdown"].Instance.AbsoluteSize.X, Viewport.X - 16), Popup.Size.Y.Offset)
+                        Library:PositionPopup(Popup, Items["RealDropdown"].Instance, Height)
+                    end
+                    Position()
+                    if not Dropdown.IsOpen then return end
+                    RenderStepped = Library:Connect(RunService.RenderStepped, Position)
+                    Items["OptionHolder"]:Tween(nil, {Size = UDim2FromOffset(Items["OptionHolder"].Instance.Size.X.Offset, Height)})
                     Items["SearchBox"].Instance.Text = ""
                     Dropdown.SearchText = ""
                     Dropdown:FilterOptions()
-
-                    task.wait()
                     Items["SearchBox"].Instance:CaptureFocus()
-
-                    RenderStepped = Library:Connect(RunService.RenderStepped, function()
-                        local DropdownPos = Items["RealDropdown"].Instance.AbsolutePosition
-                        local DropdownSize = Items["RealDropdown"].Instance.AbsoluteSize
-                        Items["OptionHolder"].Instance.Position = UDim2New(0, DropdownPos.X, 0, DropdownPos.Y + DropdownSize.Y + 5)
-                    end)
-
-                    Items["OptionHolder"]:Tween(nil, {Size = UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, Dropdown.MaxSize)})
-
-                    for Index, Value in Library.OpenFrames do
-                        if Value ~= Dropdown and not Dropdown.Section.IsSettings then
-                            Value:SetOpen(false)
-                        end
-                    end
-
+                    for _, Other in Library.OpenFrames do if Other ~= Dropdown then Other:SetOpen(false) end end
                     Library.OpenFrames[Dropdown] = Dropdown
                 else
-                    if Library.OpenFrames[Dropdown] then
-                        Library.OpenFrames[Dropdown] = nil
-                    end
-
+                    Library.OpenFrames[Dropdown] = nil
                     Items["SearchBox"].Instance:ReleaseFocus()
-
-                    if RenderStepped then
-                        RenderStepped.Connection:Disconnect()
-                        RenderStepped = nil
-                    end
-
-                    Items["OptionHolder"]:Tween(nil, {Size = UDim2New(0, Items["RealDropdown"].Instance.AbsoluteSize.X, 0, 0)})
+                    local Closing = Items["OptionHolder"]:Tween(nil, {Size = UDim2FromOffset(Items["OptionHolder"].Instance.Size.X.Offset, 0)})
+                    Library:Connect(Closing.Tween.Completed, function()
+                        if Revision == PopupRevision and not Dropdown.IsOpen then Items["OptionHolder"].Instance.Visible = false end
+                    end)
                 end
-
-                local Descendants = Items["OptionHolder"].Instance:GetDescendants()
-                TableInsert(Descendants, Items["OptionHolder"].Instance)
-
-                local NewTween
-
-                for Index, Value in Descendants do
-                    local TransparencyProperty = Tween:GetProperty(Value)
-
-                    if not TransparencyProperty then
-                        continue
-                    end
-
-                    if not Value.ClassName:find("UI") then
-                        Value.ZIndex = Dropdown.IsOpen and 3 or 1
-                    end
-
-                    if type(TransparencyProperty) == "table" then
-                        for _, Property in TransparencyProperty do
-                            NewTween = Tween:FadeItem(Value, Property, Bool, Library.FadeSpeed)
-                        end
-                    else
-                        NewTween = Tween:FadeItem(Value, TransparencyProperty, Bool, Library.FadeSpeed)
-                    end
-                end
-
-                NewTween.Tween.Completed:Connect(function()
-                    Debounce = false
-                    Items["OptionHolder"].Instance.Visible = Dropdown.IsOpen
-                end)
             end
 
             function Dropdown:Set(Option)
@@ -5330,6 +5444,7 @@ local Settings = {
                         return
                     end
 
+                    for _, OptionData in Dropdown.Options do OptionData:Toggle("Inactive") end
                     Dropdown.Value = Option
                     Library.Flags[Dropdown.Flag] = Option
 
@@ -5352,6 +5467,7 @@ local Settings = {
 
                     local OptionData = Dropdown.Options[Option]
 
+                    for _, OptionData in Dropdown.Options do OptionData:Toggle("Inactive") end
                     Dropdown.Value = Option
                     Library.Flags[Dropdown.Flag] = Option
 
@@ -5383,9 +5499,9 @@ local Settings = {
                     Text = "",
                     AutoButtonColor = false,
                     BackgroundTransparency = 1,
-                    Size = UDim2New(1, 0, 0, 20),
+                    Size = UDim2New(1, -3, 0, 26),
                     BorderSizePixel = 0,
-                    TextSize = 14,
+                    TextSize = 11,
                     BackgroundColor3 = FromRGB(184, 212, 255)
                 })  OptionButton:AddToTheme({BackgroundColor3 = "Accent"})
 
@@ -5409,15 +5525,23 @@ local Settings = {
                     BorderColor3 = FromRGB(0, 0, 0),
                     Text = Option,
                     AnchorPoint = Vector2New(0, 0.5),
-                    Size = UDim2New(0, 0, 0, 15),
+                    Size = UDim2New(1, -38, 0, 18),
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    TextXAlignment = Enum.TextXAlignment.Left,
                     BackgroundTransparency = 1,
                     Position = UDim2New(0, 8, 0.5, 0),
                     BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.X,
-                    TextSize = 14,
+                    AutomaticSize = Enum.AutomaticSize.None,
+                    TextSize = 11,
                     BackgroundColor3 = FromRGB(255, 255, 255)
                 })  OptionText:AddToTheme({TextColor3 = "Text"})
 
+                local SelectionMark = Instances:Create("TextLabel", {
+                    Parent = OptionButton.Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
+                    AnchorPoint = Vector2New(1, 0), Position = UDim2New(1, -6, 0, 0), Size = UDim2New(0, 16, 1, 0),
+                    FontFace = Library.FontMedium, TextSize = 12, Text = "✓", Visible = false
+                })
+                SelectionMark:AddToTheme({TextColor3 = "Accent"})
                 local OptionData = {
                     Text = OptionText,
                     Button = OptionButton,
@@ -5427,10 +5551,19 @@ local Settings = {
 
                 function OptionData:Toggle(Value)
                     local Active = Value == "Active"
+                    OptionData.Selected = Active
+                    SelectionMark.Instance.Visible = Active
                     OptionData.Text:ChangeItemTheme({TextColor3 = Active and "Accent" or "Text"})
                     OptionData.Text:Tween(nil, {TextColor3 = Active and Library.Theme.Accent or Library.Theme.Text})
                     OptionData.Button:Tween(nil, {BackgroundTransparency = Active and 0.88 or 1})
                 end
+
+                OptionButton:OnHover(function()
+                    OptionButton:Tween(nil, {BackgroundTransparency = OptionData.Selected and 0.88 or 0.95})
+                end)
+                OptionButton:OnHoverLeave(function()
+                    OptionButton:Tween(nil, {BackgroundTransparency = OptionData.Selected and 0.88 or 1})
+                end)
 
                 function OptionData:Set()
                     OptionData.Selected = not OptionData.Selected
@@ -5448,7 +5581,7 @@ local Settings = {
 
                         Library.Flags[Dropdown.Flag] = Dropdown.Value
 
-                        local TextFormat = #Dropdown.Value > 0 and TableConcat(Dropdown.Value, ", ") or "..."
+                        local TextFormat = #Dropdown.Value > 0 and TableConcat(Dropdown.Value, ", ") or "Select..."
                         Items["Value"].Instance.Text = TextFormat
                     else
                         if OptionData.Selected then
@@ -5473,7 +5606,7 @@ local Settings = {
                             OptionData.Selected = false
                             OptionData:Toggle("Inactive")
 
-                            Items["Value"].Instance.Text = "..."
+                            Items["Value"].Instance.Text = "Select..."
                         end
                     end
 
@@ -5485,6 +5618,7 @@ local Settings = {
                 OptionData.Button:Connect("InputBegan", function(Input)
                     if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
                         OptionData:Set()
+                        if not Dropdown.Multi then Dropdown:SetOpen(false) end
                     end
                 end)
 
@@ -5533,9 +5667,10 @@ local Settings = {
             end)
 
             Library:Connect(UserInputService.InputBegan, function(Input)
+                if Input.KeyCode == Enum.KeyCode.Escape and Dropdown.IsOpen then Dropdown:SetOpen(false); return end
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
                     if Dropdown.IsOpen then
-                        if Library:IsMouseOverFrame(Items["OptionHolder"]) then
+                        if Library:IsMouseOverFrame(Items["OptionHolder"]) or Library:IsMouseOverFrame(Items["RealDropdown"]) then
                             return
                         end
 
@@ -5546,8 +5681,7 @@ local Settings = {
 
             Items["RealDropdown"]:Connect("Changed", function(Property)
                 if Property == "AbsolutePosition" and Dropdown.IsOpen then
-                    Dropdown.IsOpen = not Library:IsClipped(Items["OptionHolder"].Instance, Dropdown.Section.Items["Section"].Instance.Parent)
-                    Items["OptionHolder"].Instance.Visible = Dropdown.IsOpen
+                    if Library:IsClipped(Items["RealDropdown"].Instance, Dropdown.Section.Items["Section"].Instance.Parent) then Dropdown:SetOpen(false) end
                 end
             end)
 
