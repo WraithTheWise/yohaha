@@ -2624,7 +2624,7 @@ local Library do
 
             local Window = {
                 Name = Data.Name or Data.name or "Window",
-                SubTitle = Data.SubTitle or Data.subtitle or "LDS13",
+                SubTitle = Data.SubTitle or Data.subtitle or "",
                 Icon = Data.Icon or nil,
 
                 Pages = { },
@@ -3191,17 +3191,17 @@ local Library do
                 -- Detached navigation rail and inset body. All colors remain theme-driven.
                 Items["Body"] = Instances:Create("Frame", {
                     Parent = Items["MainFrame"].Instance, BorderSizePixel = 0,
-                    Position = UDim2FromOffset(88, 0), Size = UDim2New(1, -88, 1, 0)
+                    Position = UDim2FromOffset(76, 0), Size = UDim2New(1, -76, 1, 0)
                 })
                 Items["Body"]:AddToTheme({BackgroundColor3 = "Background"})
                 Items["MainFrame"].Instance.BackgroundTransparency = 1
                 for _, Child in Items["MainFrame"].Instance:GetChildren() do
                     if Child:IsA("UICorner") then
                         Child.Parent = Items["Body"].Instance
-                        Child.CornerRadius = UDimNew(0, 10)
+                        Child.CornerRadius = UDimNew(0, 4)
                     elseif Child:IsA("UIStroke") then
                         Child.Parent = Items["Body"].Instance
-                        Child.Transparency = 0.15
+                        Child.Transparency = 0.35
                     end
                 end
                 for _, Name in {"Top", "Bottom", "Content", "GlowEffect", "HeaderLine"} do
@@ -3210,62 +3210,66 @@ local Library do
                 Items["SidebarLine"].Instance.Visible = false
                 Items["HeaderLine"].Instance.Visible = false
                 Items["Top"].Instance.BackgroundTransparency = 1
-                Items["Top"].Instance.Size = UDim2New(1, 0, 0, 100)
+                Items["Top"].Instance.Size = UDim2New(1, 0, 0, 78)
                 Items["Breadcrumb"].Instance.Visible = false
                 Items["PageTitle"].Instance.Visible = false
-                Items["Title"].Instance.Position = UDim2FromOffset(Window.Icon and 48 or 18, 15)
-                Items["Title"].Instance.Size = UDim2New(0.5, Window.Icon and -62 or -32, 0, 20)
-                Items["Title"].Instance.TextSize = 14
+                Items["Title"].Instance.Position = UDim2FromOffset(Window.Icon and 40 or 14, 11)
+                Items["Title"].Instance.Size = UDim2New(0.5, Window.Icon and -50 or -24, 0, 20)
+                Items["Title"].Instance.TextSize = 13
                 Items["GameName"].Instance.Visible = true
-                Items["GameName"].Instance.Position = UDim2FromOffset(Window.Icon and 48 or 18, 36)
+                Items["GameName"].Instance.Position = UDim2FromOffset(Window.Icon and 40 or 14, 31)
                 Items["GameName"].Instance.Size = UDim2New(0.5, Window.Icon and -62 or -32, 0, 14)
                 Items["GameName"].Instance.TextSize = 10
                 if Items["WindowIcon"] then
-                    Items["WindowIcon"].Instance.Position = UDim2FromOffset(16, 29)
-                    Items["WindowIcon"].Instance.Size = UDim2FromOffset(24, 24)
+                    Items["WindowIcon"].Instance.Position = UDim2FromOffset(12, 23)
+                    Items["WindowIcon"].Instance.Size = UDim2FromOffset(20, 20)
                 end
-                Items["Search"].Instance.Position = UDim2New(1, -46, 0, 14)
-                Items["Search"].Instance.Size = UDim2New(0.42, -20, 0, 28)
-                Items["SearchClear"].Instance.Size = UDim2FromOffset(26, 28)
+                Items["Search"].Instance.Position = UDim2New(1, -40, 0, 10)
+                Items["Search"].Instance.Size = UDim2New(0.38, -12, 0, 24)
+                Items["SearchClear"].Instance.Size = UDim2FromOffset(24, 24)
                 Items["Input"].Instance.TextSize = 11
-                Items["Close"].Instance.Position = UDim2New(1, -12, 0, 14)
-                Items["Close"].Instance.Size = UDim2FromOffset(28, 28)
-                Items["KeyHint"].Instance.Position = UDim2New(1, -46, 0, 46)
+                Items["Close"].Instance.Position = UDim2New(1, -10, 0, 10)
+                Items["Close"].Instance.Size = UDim2FromOffset(24, 24)
+                Items["KeyHint"].Instance.Position = UDim2New(1, -40, 0, 37)
                 Items["KeyHint"].Instance.Size = UDim2New(0.48, -16, 0, 12)
                 Items["TabHost"] = Instances:Create("Frame", {
                     Parent = Items["Top"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
-                    Position = UDim2FromOffset(14, 64), Size = UDim2New(1, -28, 0, 38)
+                    Position = UDim2FromOffset(14, 52), Size = UDim2New(1, -28, 0, 29)
                 })
-                Items["Content"].Instance.Position = UDim2FromOffset(12, 108)
-                Items["Content"].Instance.Size = UDim2New(1, -24, 1, -144)
+                Items["HeaderLine"].Instance.Visible = true
+                Items["HeaderLine"].Instance.Position = UDim2FromOffset(14, 81)
+                Items["HeaderLine"].Instance.Size = UDim2New(1, -28, 0, 1)
+                Items["HeaderLine"].Instance.BackgroundTransparency = 0.5
+                Items["Content"].Instance.Position = UDim2FromOffset(8, 86)
+                Items["Content"].Instance.Size = UDim2New(1, -16, 1, -116)
                 Items["Bottom"].Instance.BackgroundTransparency = 1
-                Items["Bottom"].Instance.Size = UDim2New(1, 0, 0, 28)
+                Items["Bottom"].Instance.Size = UDim2New(1, 0, 0, 24)
                 for _, Child in Items["Bottom"].Instance:GetChildren() do
                     if Child:IsA("Frame") then Child.Visible = false end
                 end
-                Items["SessionTime"].Instance.Position = UDim2FromOffset(18, 5)
-                Items["SearchCount"].Instance.Position = UDim2New(1, -18, 0, 5)
+                Items["SessionTime"].Instance.Position = UDim2FromOffset(14, 4)
+                Items["SearchCount"].Instance.Position = UDim2New(1, -14, 0, 4)
                 Items["Rail"] = Instances:Create("Frame", {
                     Parent = Items["MainFrame"].Instance, BorderSizePixel = 0,
-                    Position = UDim2FromOffset(0, 72), Size = UDim2New(0, 74, 1, -116)
+                    Position = UDim2FromOffset(0, 52), Size = UDim2New(0, 66, 1, -86)
                 })
                 Items["Rail"]:AddToTheme({BackgroundColor3 = "Inline"})
-                Instances:Create("UICorner", {Parent = Items["Rail"].Instance, CornerRadius = UDimNew(0, 9)})
+                Instances:Create("UICorner", {Parent = Items["Rail"].Instance, CornerRadius = UDimNew(0, 3)})
                 Instances:Create("UIStroke", {
-                    Parent = Items["Rail"].Instance, Thickness = 1, Transparency = 0.2,
+                    Parent = Items["Rail"].Instance, Thickness = 1, Transparency = 0.45,
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Border
                 }):AddToTheme({Color = "Outline"})
                 Items["Sidebar"].Instance.Parent = Items["Rail"].Instance
-                Items["Sidebar"].Instance.Position = UDim2FromOffset(6, 8)
-                Items["Sidebar"].Instance.Size = UDim2New(1, -12, 1, -16)
+                Items["Sidebar"].Instance.Position = UDim2FromOffset(4, 6)
+                Items["Sidebar"].Instance.Size = UDim2New(1, -8, 1, -12)
                 Items["Pages"].Instance.Size = UDim2New(1, -2, 0, 0)
                 for _, Child in Items["Pages"].Instance:GetChildren() do
-                    if Child:IsA("UIListLayout") then Child.Padding = UDimNew(0, 4) end
+                    if Child:IsA("UIListLayout") then Child.Padding = UDimNew(0, 1) end
                 end
                 local function UpdateRailHeight()
-                    local Maximum = math.max(80, Items["MainFrame"].Instance.Size.Y.Offset - 116)
-                    local Desired = Items["Pages"].Instance.AbsoluteSize.Y / (IsMobile and 0.7 or 1) + 16
-                    Items["Rail"].Instance.Size = UDim2FromOffset(74, MathClamp(Desired, 80, Maximum))
+                    local Maximum = math.max(64, Items["MainFrame"].Instance.Size.Y.Offset - 86)
+                    local Desired = Items["Pages"].Instance.AbsoluteSize.Y / (IsMobile and 0.7 or 1) + 12
+                    Items["Rail"].Instance.Size = UDim2FromOffset(66, MathClamp(Desired, 64, Maximum))
                 end
                 Library:Connect(Items["Pages"].Instance:GetPropertyChangedSignal("AbsoluteSize"), UpdateRailHeight)
                 Library:Connect(Items["MainFrame"].Instance:GetPropertyChangedSignal("Size"), UpdateRailHeight)
@@ -3615,7 +3619,7 @@ local Settings = {
                     BorderColor3 = FromRGB(0, 0, 0),
                     Text = "",
                     AutoButtonColor = false,
-                    Size = UDim2New(1, 0, 0, 62),
+                    Size = UDim2New(1, 0, 0, 52),
                     BorderSizePixel = 0,
                     TextSize = 14,
                     BackgroundColor3 = FromRGB(13, 15, 18)
@@ -3624,7 +3628,7 @@ local Settings = {
                 Instances:Create("UICorner", {
                     Parent = Items["Inactive"].Instance,
                     Name = "\0",
-                    CornerRadius = UDimNew(0, 6)
+                    CornerRadius = UDimNew(0, 2)
                 })
 
                 local PageIconData = Library.GetIcon(Page.Icon) or {}
@@ -3638,8 +3642,8 @@ local Settings = {
                     ImageRectOffset = PageIconData.ImageRectOffset or Vector2New(0, 0),
                     ImageRectSize = PageIconData.ImageRectSize or Vector2New(0, 0),
                     BackgroundTransparency = 1,
-                    Position = UDim2New(0.5, 0, 0, 20),
-                    Size = UDim2New(0, 20, 0, 20),
+                    Position = UDim2New(0.5, 0, 0, 17),
+                    Size = UDim2New(0, 16, 0, 16),
                     ZIndex = 2,
                     BorderSizePixel = 0,
                     BackgroundColor3 = FromRGB(255, 255, 255)
@@ -3708,7 +3712,7 @@ local Settings = {
                 Instances:Create("UIListLayout", {
                     Parent = Items["LeftColumn"].Instance,
                     Name = "\0",
-                    Padding = UDimNew(0, 12),
+                    Padding = UDimNew(0, 8),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
 
@@ -3743,7 +3747,7 @@ local Settings = {
                 Instances:Create("UIListLayout", {
                     Parent = Items["RightColumn"].Instance,
                     Name = "\0",
-                    Padding = UDimNew(0, 12),
+                    Padding = UDimNew(0, 8),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
 
@@ -3762,7 +3766,7 @@ local Settings = {
                 Instances:Create("UICorner", {
                     Parent = Items["Accent"].Instance,
                     Name = "\0",
-                    CornerRadius = UDimNew(0, 6)
+                    CornerRadius = UDimNew(0, 2)
                 })
 
                 Items["Gradient"] = Instances:Create("UIGradient", {
@@ -3780,8 +3784,8 @@ local Settings = {
                 Items["NavMarker"]:AddToTheme({BackgroundColor3 = "Accent"})
                 Items["NavText"] = Instances:Create("TextLabel", {
                     Parent = Items["Inactive"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
-                    Position = UDim2FromOffset(3, 38), Size = UDim2New(1, -6, 0, 18),
-                    FontFace = Library.FontMedium, TextSize = 10, Text = Page.Name,
+                    Position = UDim2FromOffset(3, 30), Size = UDim2New(1, -6, 0, 18),
+                    FontFace = Library.Font, TextSize = 10, Text = Page.Name,
                     TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2
                 })
                 Items["NavText"]:AddToTheme({TextColor3 = "Dark Text"})
@@ -3792,26 +3796,20 @@ local Settings = {
                 })
                 Items["Categories"]:AddToTheme({ScrollBarImageColor3 = "Outline"})
                 Items["TabStrip"] = Instances:Create("Frame", {
-                    Parent = Items["Categories"].Instance, BorderSizePixel = 0,
+                    Parent = Items["Categories"].Instance, BorderSizePixel = 0, BackgroundTransparency = 1,
                     Position = UDim2FromOffset(0, 1), Size = UDim2FromOffset(100, 34)
                 })
                 Items["TabStrip"]:AddToTheme({BackgroundColor3 = "Inline"})
-                Instances:Create("UICorner", {Parent = Items["TabStrip"].Instance, CornerRadius = UDimNew(0, 7)})
-                Instances:Create("UIStroke", {
-                    Parent = Items["TabStrip"].Instance, Thickness = 1, Transparency = 0.5,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-                }):AddToTheme({Color = "Outline"})
                 Items["TabLayout"] = Instances:Create("UIListLayout", {
-                    Parent = Items["TabStrip"].Instance, Padding = UDimNew(0, 4),
-                    FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                    Parent = Items["TabStrip"].Instance, Padding = UDimNew(0, 14),
+                    FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Left,
                     VerticalAlignment = Enum.VerticalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder
                 })
                 local function UpdateTabStrip()
                     local Scale = IsMobile and 0.7 or 1
-                    local Available = Items["Categories"].Instance.AbsoluteSize.X / Scale
                     local Width = math.max(32, Items["TabLayout"].Instance.AbsoluteContentSize.X / Scale + 8)
-                    Items["TabStrip"].Instance.Size = UDim2FromOffset(Width, 34)
-                    Items["TabStrip"].Instance.Position = UDim2FromOffset(math.max(2, (Available - Width) / 2), 1)
+                    Items["TabStrip"].Instance.Size = UDim2FromOffset(Width, 28)
+                    Items["TabStrip"].Instance.Position = UDim2FromOffset(0, 0)
                     Items["Categories"].Instance.CanvasSize = UDim2FromOffset(Width + 4, 0)
                 end
                 Library:Connect(Items["TabLayout"].Instance:GetPropertyChangedSignal("AbsoluteContentSize"), UpdateTabStrip)
@@ -3841,7 +3839,7 @@ local Settings = {
                 Items["NavText"]:Tween(nil, {TextColor3 = Bool and Library.Theme.Text or Library.Theme["Dark Text"]})
                 Items["Icon"]:ChangeItemTheme({ImageColor3 = Bool and "Accent" or "Text"})
                 Items["Icon"]:Tween(nil, {ImageColor3 = Bool and Library.Theme.Accent or Library.Theme.Text, ImageTransparency = Bool and 0 or 0.4})
-                Items["Accent"]:Tween(nil, {Size = UDim2New(1, 0, 1, 0), BackgroundTransparency = Bool and 0.9 or 1})
+                Items["Accent"]:Tween(nil, {Size = UDim2New(1, 0, 1, 0), BackgroundTransparency = Bool and 0.94 or 1})
                 if Bool then
                     Library.CurrentPage = Page
                     Page.Window.Items["Breadcrumb"].Instance.Text = string.upper(Page.Name)
@@ -3925,13 +3923,13 @@ local Settings = {
 
                 Instances:Create("UICorner", {
                     Parent = Items["Section"].Instance,
-                    Name = "\0", CornerRadius = UDimNew(0, 8)
+                    Name = "\0", CornerRadius = UDimNew(0, 3)
                 })
 
                 Instances:Create("UIStroke", {
                     Parent = Items["Section"].Instance,
                     Name = "\0",
-                    Transparency = 0.25,
+                    Transparency = 0.6,
                     Color = FromRGB(26, 30, 36),
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Border
                 }):AddToTheme({Color = "Outline"})
@@ -3947,7 +3945,7 @@ local Settings = {
                     Active = true,
                     BackgroundTransparency = 1,
                     Position = UDim2New(0, 0, 0, 0),
-                    Size = UDim2New(1, 0, 0, 38),
+                    Size = UDim2New(1, 0, 0, 30),
                     BorderSizePixel = 0,
                     TextSize = 14,
                     BackgroundColor3 = FromRGB(30, 30, 30),
@@ -3997,9 +3995,9 @@ local Settings = {
                     TextColor3 = FromRGB(200, 200, 200),
                     BorderColor3 = FromRGB(0, 0, 0),
                     Text = Section.Name,
-                    Size = UDim2New(1, -40, 0, 38),
+                    Size = UDim2New(1, -32, 0, 30),
                     BackgroundTransparency = 1,
-                    Position = UDim2FromOffset(14, 0),
+                    Position = UDim2FromOffset(10, 0),
                     BorderSizePixel = 0,
                     AutomaticSize = Enum.AutomaticSize.None,
                     TextSize = 12,
@@ -4018,7 +4016,7 @@ local Settings = {
                     ImageRectOffset = ChevronIconData.ImageRectOffset or Vector2New(0, 0),
                     ImageRectSize = ChevronIconData.ImageRectSize or Vector2New(0, 0),
                     BackgroundTransparency = 1,
-                    Position = UDim2New(1, -14, 0, 19),
+                    Position = UDim2New(1, -10, 0, 15),
                     Size = UDim2FromOffset(12, 12),
                     BorderSizePixel = 0,
                     Rotation = 90,
@@ -4030,8 +4028,8 @@ local Settings = {
                     Name = "\0",
                     BorderColor3 = FromRGB(0, 0, 0),
                     BackgroundTransparency = 1,
-                    Position = UDim2FromOffset(14, 44),
-                    Size = UDim2New(1, -28, 0, 0),
+                    Position = UDim2FromOffset(10, 36),
+                    Size = UDim2New(1, -20, 0, 0),
                     BorderSizePixel = 0,
                     AutomaticSize = Enum.AutomaticSize.Y,
                     BackgroundColor3 = FromRGB(255, 255, 255)
@@ -4040,14 +4038,14 @@ local Settings = {
                 Instances:Create("UIListLayout", {
                     Parent = Items["Content"].Instance,
                     Name = "\0",
-                    Padding = UDimNew(0, 7),
+                    Padding = UDimNew(0, 4),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
 
                 Section.IsOpen = true
 
                 local function UpdateHeight()
-                    local Height = Section.IsOpen and (44 + Items["Content"].Instance.AbsoluteSize.Y / (IsMobile and 0.7 or 1) + 14) or 38
+                    local Height = Section.IsOpen and (36 + Items["Content"].Instance.AbsoluteSize.Y / (IsMobile and 0.7 or 1) + 10) or 30
                     Items["Section"].Instance.Size = UDim2New(1, 0, 0, Height)
                 end
 
@@ -4070,30 +4068,30 @@ local Settings = {
 
                 Instances:Create("Frame", {
                     Parent = Items["Section"].Instance, BorderSizePixel = 0,
-                    Position = UDim2FromOffset(14, 37), Size = UDim2New(1, -28, 0, 1), BackgroundTransparency = 0.65
+                    Position = UDim2FromOffset(10, 29), Size = UDim2New(1, -20, 0, 1), BackgroundTransparency = 0.8
                 }):AddToTheme({BackgroundColor3 = "Outline"})
                 Items["IconBackground"].Instance.Visible = false
                 Items["Chevron"].Instance.ImageTransparency = 0.75
                 Items["Category"] = Instances:Create("TextButton", {
                     Parent = Section.Page.Items["TabStrip"].Instance,
-                    Size = UDim2FromOffset(92, 30), AutomaticSize = Enum.AutomaticSize.X, BorderSizePixel = 0, BackgroundTransparency = 1,
+                    Size = UDim2FromOffset(0, 28), AutomaticSize = Enum.AutomaticSize.X, BorderSizePixel = 0, BackgroundTransparency = 1,
                     Text = Section.Name, FontFace = Library.FontMedium, TextSize = 11,
                     TextXAlignment = Enum.TextXAlignment.Center,
                     AutoButtonColor = false, LayoutOrder = #Section.Page.SectionList
                 })
                 Items["Category"]:AddToTheme({TextColor3 = "Dark Text", BackgroundColor3 = "Accent"})
-                Instances:Create("UIPadding", {Parent = Items["Category"].Instance, PaddingLeft = UDimNew(0, 14), PaddingRight = UDimNew(0, 14)})
+                Instances:Create("UIPadding", {Parent = Items["Category"].Instance, PaddingLeft = UDimNew(0, 3), PaddingRight = UDimNew(0, 3)})
                 Instances:Create("UICorner", {Parent = Items["Category"].Instance, CornerRadius = UDimNew(0, 5)})
                 Items["CategoryMarker"] = Instances:Create("Frame", {
-                    Parent = Items["Category"].Instance, BorderSizePixel = 0, Size = UDim2FromOffset(24, 2), AnchorPoint = Vector2New(0.5, 1),
-                    Position = UDim2New(0.5, 0, 1, -2), Visible = false
+                    Parent = Items["Category"].Instance, BorderSizePixel = 0, Size = UDim2New(1, -6, 0, 2), AnchorPoint = Vector2New(0.5, 1),
+                    Position = UDim2New(0.5, 0, 1, 0), Visible = false
                 })
                 Items["CategoryMarker"]:AddToTheme({BackgroundColor3 = "Accent"})
                 Items["Category"]:OnHover(function()
-                    if Section.Page.SelectedCategory ~= Section.Name then Items["Category"]:Tween(nil, {BackgroundTransparency = 0.96}) end
+                    if Section.Page.SelectedCategory ~= Section.Name then Items["Category"]:Tween(nil, {BackgroundTransparency = 0.98}) end
                 end)
                 Items["Category"]:OnHoverLeave(function()
-                    Items["Category"]:Tween(nil, {BackgroundTransparency = Section.Page.SelectedCategory == Section.Name and 0.92 or 1})
+                    Items["Category"]:Tween(nil, {BackgroundTransparency = 1})
                 end)
                 local function SelectCategory(Scroll)
                     Section.Page.SelectedCategory = Section.Name
@@ -4102,13 +4100,13 @@ local Settings = {
                         Other.Items["CategoryMarker"].Instance.Visible = Other == Section
                         local Button = Other.Items["Category"]
                         if Button then
-                            Button.Instance.BackgroundTransparency = Other == Section and 0.92 or 1
+                            Button.Instance.BackgroundTransparency = 1
                             Button:ChangeItemTheme({TextColor3 = Other == Section and "Text" or "Dark Text", BackgroundColor3 = "Accent"})
                             Button.Instance.TextColor3 = Other == Section and Library.Theme.Text or Library.Theme["Dark Text"]
                         end
                     end
                     Items["CategoryMarker"].Instance.Visible = true
-                    Items["Category"].Instance.BackgroundTransparency = 0.92
+                    Items["Category"].Instance.BackgroundTransparency = 1
                     Items["Category"]:ChangeItemTheme({TextColor3 = "Text", BackgroundColor3 = "Accent"})
                     Items["Category"].Instance.TextColor3 = Library.Theme.Text
                     if Section.Page.Active then
@@ -4169,7 +4167,7 @@ local Settings = {
                     Position = UDim2New(0, 0, 0.5, 0),
                     AnchorPoint = Vector2New(0, 0.5),
                     BorderColor3 = FromRGB(0, 0, 0),
-                    Size = UDim2New(0, 23, 0, 12),
+                    Size = UDim2New(0, 13, 0, 13),
                     BorderSizePixel = 0,
                     BackgroundColor3 = FromRGB(28, 32, 38)
                 })  Items["Indicator"]:AddToTheme({BackgroundColor3 = "Element"})
@@ -4177,7 +4175,7 @@ local Settings = {
                 Instances:Create("UICorner", {
                     Parent = Items["Indicator"].Instance,
                     Name = "\0",
-                    CornerRadius = UDimNew(0, 5)
+                    CornerRadius = UDimNew(0, 2)
                 })
 
                 Instances:Create("UIStroke", {
@@ -4201,7 +4199,7 @@ local Settings = {
                 Instances:Create("UICorner", {
                     Parent = Items["Accent"].Instance,
                     Name = "\0",
-                    CornerRadius = UDimNew(0, 5)
+                    CornerRadius = UDimNew(0, 2)
                 })
 
                 Items["CheckImage"] = Instances:Create("ImageLabel", {
@@ -4213,7 +4211,7 @@ local Settings = {
                     AnchorPoint = Vector2New(0.5, 0.5),
                     Image = "rbxassetid://74979969250992",
                     BackgroundTransparency = 1,
-                    Rotation = 85,
+                    Rotation = 0,
                     Position = UDim2New(0.5, 0, 0.5, 0),
                     Size = UDim2New(0, 8, 0, 8),
                     BorderSizePixel = 0,
@@ -4230,9 +4228,9 @@ local Settings = {
                     TextColor3 = FromRGB(100, 100, 100),
                     BorderColor3 = FromRGB(0, 0, 0),
                     Text = Toggle.Name,
-                    Size = UDim2New(1, -33, 1, 0),
+                    Size = UDim2New(1, -22, 1, 0),
                     BackgroundTransparency = 1,
-                    Position = UDim2New(0, 0, 0, 0),
+                    Position = UDim2New(0, 22, 0, 0),
                     BorderSizePixel = 0,
                     AutomaticSize = Enum.AutomaticSize.None,
                     TextSize = 12,
@@ -4245,7 +4243,7 @@ local Settings = {
                     BorderColor3 = FromRGB(0, 0, 0),
                     AnchorPoint = Vector2New(1, 0),
                     BackgroundTransparency = 1,
-                    Position = UDim2New(1, -33, 0, 0),
+                    Position = UDim2New(1, 0, 0, 0),
                     Size = UDim2New(0, 0, 1, 0),
                     BorderSizePixel = 0,
                     AutomaticSize = Enum.AutomaticSize.X,
@@ -4263,18 +4261,8 @@ local Settings = {
                 })
 
 
-                Items["Indicator"].Instance.AnchorPoint = Vector2New(1, 0.5)
-                Items["Indicator"].Instance.Position = UDim2New(1, 0, 0.5, 0)
-                Items["CheckImage"].Instance.Visible = false
-                Items["Knob"] = Instances:Create("Frame", {
-                    Parent = Items["Indicator"].Instance, AnchorPoint = Vector2New(0, 0.5),
-                    Position = UDim2New(0, 3, 0.5, 0), Size = UDim2FromOffset(6, 6),
-                    BorderSizePixel = 0, ZIndex = 3
-                })
-                Items["Knob"]:AddToTheme({BackgroundColor3 = "Text"})
-                Instances:Create("UICorner", {Parent = Items["Knob"].Instance, CornerRadius = UDimNew(1, 0)})
-
-                Library:FitRowText(Items, 33)
+                Items["CheckImage"]:AddToTheme({ImageColor3 = "Text"})
+                Library:FitRowText(Items, 22)
 
                 Items["Toggle"]:OnHover(function()
                     if Toggle.Value then return end
@@ -4296,7 +4284,6 @@ local Settings = {
             function Toggle:Set(Value)
                 Toggle.Value = Value
                 Library.Flags[Toggle.Flag] = Value
-                Items["Knob"]:Tween(nil, {Position = UDim2New(0, Value and 14 or 3, 0.5, 0)})
 
                 if Toggle.Value then
                     Items["Accent"]:Tween(TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0, Size = UDim2New(1, 0, 1, 0)})
@@ -4547,7 +4534,7 @@ local Settings = {
                     Name = "\0",
                     BackgroundTransparency = 1,
                     BorderColor3 = FromRGB(0, 0, 0),
-                    Size = UDim2New(1, 0, 0, 45),
+                    Size = UDim2New(1, 0, 0, 38),
                     BorderSizePixel = 0,
                     BackgroundColor3 = FromRGB(255, 255, 255)
                 })
