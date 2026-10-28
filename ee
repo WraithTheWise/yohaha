@@ -3262,7 +3262,7 @@ local Library do
                 Items["Sidebar"].Instance.Parent = Items["Rail"].Instance
                 Items["Sidebar"].Instance.Position = UDim2FromOffset(4, 6)
                 Items["Sidebar"].Instance.Size = UDim2New(1, -8, 1, -12)
-                Items["Pages"].Instance.Size = UDim2New(1, -2, 0, 0)
+                Items["Pages"].Instance.Size = UDim2New(1, 0, 0, 0)
                 for _, Child in Items["Pages"].Instance:GetChildren() do
                     if Child:IsA("UIListLayout") then Child.Padding = UDimNew(0, 1) end
                 end
@@ -3631,18 +3631,24 @@ local Settings = {
                     CornerRadius = UDimNew(0, 2)
                 })
 
+                -- Center the icon and caption as a single unit, with equal top/bottom space.
+                Items["NavContent"] = Instances:Create("Frame", {
+                    Parent = Items["Inactive"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
+                    AnchorPoint = Vector2New(0.5, 0.5), Position = UDim2New(0.5, 0, 0.5, 0),
+                    Size = UDim2New(1, -8, 0, 36), ZIndex = 2
+                })
                 local PageIconData = Library.GetIcon(Page.Icon) or {}
                 Items["Icon"] = Instances:Create("ImageLabel", {
-                    Parent = Items["Inactive"].Instance,
+                    Parent = Items["NavContent"].Instance,
                     Name = "\0",
                     ImageTransparency = 0.5,
                     BorderColor3 = FromRGB(0, 0, 0),
-                    AnchorPoint = Vector2New(0.5, 0.5),
+                    AnchorPoint = Vector2New(0.5, 0),
                     Image = PageIconData.Url or "rbxassetid://"..Page.Icon,
                     ImageRectOffset = PageIconData.ImageRectOffset or Vector2New(0, 0),
                     ImageRectSize = PageIconData.ImageRectSize or Vector2New(0, 0),
                     BackgroundTransparency = 1,
-                    Position = UDim2New(0.5, 0, 0, 17),
+                    Position = UDim2New(0.5, 0, 0, 0),
                     Size = UDim2New(0, 16, 0, 16),
                     ZIndex = 2,
                     BorderSizePixel = 0,
@@ -3783,8 +3789,8 @@ local Settings = {
                 })
                 Items["NavMarker"]:AddToTheme({BackgroundColor3 = "Accent"})
                 Items["NavText"] = Instances:Create("TextLabel", {
-                    Parent = Items["Inactive"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
-                    Position = UDim2FromOffset(3, 30), Size = UDim2New(1, -6, 0, 18),
+                    Parent = Items["NavContent"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
+                    Position = UDim2FromOffset(0, 22), Size = UDim2New(1, 0, 0, 14),
                     FontFace = Library.Font, TextSize = 10, Text = Page.Name,
                     TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2
                 })
@@ -3807,10 +3813,13 @@ local Settings = {
                 })
                 local function UpdateTabStrip()
                     local Scale = IsMobile and 0.7 or 1
-                    local Width = math.max(32, Items["TabLayout"].Instance.AbsoluteContentSize.X / Scale + 8)
+                    local Available = Items["Categories"].Instance.AbsoluteSize.X / Scale
+                    local Width = math.ceil(Items["TabLayout"].Instance.AbsoluteContentSize.X / Scale - 0.0001)
                     Items["TabStrip"].Instance.Size = UDim2FromOffset(Width, 28)
-                    Items["TabStrip"].Instance.Position = UDim2FromOffset(0, 0)
-                    Items["Categories"].Instance.CanvasSize = UDim2FromOffset(Width + 4, 0)
+                    Items["TabStrip"].Instance.Position = UDim2FromOffset(math.max(0, MathFloor((Available - Width) / 2)), 0)
+                    Items["Categories"].Instance.CanvasSize = UDim2FromOffset(math.max(Available, Width), 0)
+                    local Scroll = Items["Categories"].Instance.CanvasPosition.X
+                    Items["Categories"].Instance.CanvasPosition = Vector2New(MathClamp(Scroll, 0, math.max(0, Width - Available)), 0)
                 end
                 Library:Connect(Items["TabLayout"].Instance:GetPropertyChangedSignal("AbsoluteContentSize"), UpdateTabStrip)
                 Library:Connect(Items["Categories"].Instance:GetPropertyChangedSignal("AbsoluteSize"), UpdateTabStrip)
@@ -3945,7 +3954,7 @@ local Settings = {
                     Active = true,
                     BackgroundTransparency = 1,
                     Position = UDim2New(0, 0, 0, 0),
-                    Size = UDim2New(1, 0, 0, 30),
+                    Size = UDim2New(1, 0, 0, 32),
                     BorderSizePixel = 0,
                     TextSize = 14,
                     BackgroundColor3 = FromRGB(30, 30, 30),
@@ -3990,14 +3999,14 @@ local Settings = {
                     Parent = Items["Section"].Instance,
                     Name = "\0",
                     TextTruncate = Enum.TextTruncate.AtEnd,
-                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextXAlignment = Enum.TextXAlignment.Center,
                     FontFace = Library.FontMedium,
                     TextColor3 = FromRGB(200, 200, 200),
                     BorderColor3 = FromRGB(0, 0, 0),
                     Text = Section.Name,
-                    Size = UDim2New(1, -32, 0, 30),
+                    Size = UDim2New(1, -64, 0, 32),
                     BackgroundTransparency = 1,
-                    Position = UDim2FromOffset(10, 0),
+                    Position = UDim2FromOffset(32, 0),
                     BorderSizePixel = 0,
                     AutomaticSize = Enum.AutomaticSize.None,
                     TextSize = 12,
@@ -4016,7 +4025,7 @@ local Settings = {
                     ImageRectOffset = ChevronIconData.ImageRectOffset or Vector2New(0, 0),
                     ImageRectSize = ChevronIconData.ImageRectSize or Vector2New(0, 0),
                     BackgroundTransparency = 1,
-                    Position = UDim2New(1, -10, 0, 15),
+                    Position = UDim2New(1, -10, 0, 16),
                     Size = UDim2FromOffset(12, 12),
                     BorderSizePixel = 0,
                     Rotation = 90,
@@ -4045,7 +4054,7 @@ local Settings = {
                 Section.IsOpen = true
 
                 local function UpdateHeight()
-                    local Height = Section.IsOpen and (36 + Items["Content"].Instance.AbsoluteSize.Y / (IsMobile and 0.7 or 1) + 10) or 30
+                    local Height = Section.IsOpen and (36 + Items["Content"].Instance.AbsoluteSize.Y / (IsMobile and 0.7 or 1) + 10) or 32
                     Items["Section"].Instance.Size = UDim2New(1, 0, 0, Height)
                 end
 
@@ -4068,7 +4077,7 @@ local Settings = {
 
                 Instances:Create("Frame", {
                     Parent = Items["Section"].Instance, BorderSizePixel = 0,
-                    Position = UDim2FromOffset(10, 29), Size = UDim2New(1, -20, 0, 1), BackgroundTransparency = 0.8
+                    Position = UDim2FromOffset(10, 31), Size = UDim2New(1, -20, 0, 1), BackgroundTransparency = 0.8
                 }):AddToTheme({BackgroundColor3 = "Outline"})
                 Items["IconBackground"].Instance.Visible = false
                 Items["Chevron"].Instance.ImageTransparency = 0.75
@@ -4155,7 +4164,7 @@ local Settings = {
                     Text = "",
                     AutoButtonColor = false,
                     BackgroundTransparency = 1,
-                    Size = UDim2New(1, 0, 0, 25),
+                    Size = UDim2New(1, 0, 0, 26),
                     BorderSizePixel = 0,
                     TextSize = 14,
                     BackgroundColor3 = FromRGB(255, 255, 255)
@@ -4167,7 +4176,7 @@ local Settings = {
                     Position = UDim2New(0, 0, 0.5, 0),
                     AnchorPoint = Vector2New(0, 0.5),
                     BorderColor3 = FromRGB(0, 0, 0),
-                    Size = UDim2New(0, 13, 0, 13),
+                    Size = UDim2New(0, 14, 0, 14),
                     BorderSizePixel = 0,
                     BackgroundColor3 = FromRGB(28, 32, 38)
                 })  Items["Indicator"]:AddToTheme({BackgroundColor3 = "Element"})
