@@ -1346,6 +1346,21 @@ local Library do
         end
     end
 
+    -- Opposite soft corners give the panels a restrained lemon silhouette.
+    Library.SetPanelCorners = function(self, Item, TopLeft, TopRight, BottomRight, BottomLeft)
+        local Object = typeof(Item) == "Instance" and Item or Item.Instance
+        local Corner = Object:FindFirstChildOfClass("UICorner")
+        if not Corner then Corner = InstanceNew("UICorner"); Corner.Parent = Object end
+        Corner.CornerRadius = UDimNew(0, 4)
+        -- Older clients retain the uniform radius if individual corners are unavailable.
+        pcall(function()
+            Corner.TopLeftRadius = UDimNew(0, TopLeft)
+            Corner.TopRightRadius = UDimNew(0, TopRight)
+            Corner.BottomRightRadius = UDimNew(0, BottomRight)
+            Corner.BottomLeftRadius = UDimNew(0, BottomLeft)
+        end)
+    end
+
     Library.IsMouseOverFrame = function(self, Frame)
         Frame = Frame.Instance
 
@@ -2216,7 +2231,7 @@ local Library do
             local Debounce = false
             local RenderStepped
 
-            Library:StyleSurface(Items["KeyButton"], "Element", "Inline", 4, false)
+            -- Keep the text button solid: UIGradient also tints its key label.
             Library:StyleSurface(Items["KeybindWindow"], "Inline", "Background", 6, false)
 
             function Keybind:SetOpen(Bool)
@@ -3253,6 +3268,8 @@ local Library do
                 Items["Top"].Instance.Size = UDim2New(1, 0, 0, 44)
                 Items["Top"].Instance.BackgroundTransparency = 0
                 Library:StyleSurface(Items["Top"], "Element", "Inline", 6, false)
+                Library:SetPanelCorners(Items["Body"], 12, 4, 12, 4)
+                Library:SetPanelCorners(Items["Top"], 12, 4, 0, 0)
                 Items["Breadcrumb"].Instance.Visible = false
                 Items["PageTitle"].Instance.Visible = false
                 Items["GameName"].Instance.Visible = Window.SubTitle ~= ""
@@ -3290,18 +3307,15 @@ local Library do
                 Items["SearchBorder"].Instance.Transparency = 0.2
                 Items["Close"].Instance.Position = UDim2New(1, -6, 0, 9)
                 Items["Close"].Instance.Size = UDim2FromOffset(26, 26)
-                Items["TabHost"] = Instances:Create("Frame", {
-                    Parent = Items["Body"].Instance, BackgroundTransparency = 1, BorderSizePixel = 0,
-                    Position = UDim2FromOffset(12, 48), Size = UDim2New(1, -24, 0, 28)
-                })
-                Items["Content"].Instance.Position = UDim2FromOffset(12, 82)
-                Items["Content"].Instance.Size = UDim2New(1, -24, 1, -118)
+                Items["Content"].Instance.Position = UDim2FromOffset(12, 56)
+                Items["Content"].Instance.Size = UDim2New(1, -24, 1, -92)
                 Items["Bottom"].Instance.Size = UDim2New(1, 0, 0, 28)
                 Items["Bottom"].Instance.BackgroundTransparency = 0
                 for _, Child in Items["Bottom"].Instance:GetChildren() do
                     if Child:IsA("Frame") then Child.Visible = false end
                 end
                 Library:StyleSurface(Items["Bottom"], "Element", "Inline", 6, false)
+                Library:SetPanelCorners(Items["Bottom"], 0, 0, 12, 4)
                 Items["SessionTime"].Instance.Position = UDim2FromOffset(10, 0)
                 Items["SessionTime"].Instance.Size = UDim2New(0.3, -10, 1, 0)
                 Items["SessionTime"].Instance.TextSize = 12
@@ -3580,6 +3594,8 @@ local Settings = {
                 Items["MainFrame"].Instance.Position = UDim2New(0, CenterPosition.X, 0, CenterPosition.Y)
             end
 
+            local OpenMotion, LogoMotion
+
             function Window:SetOpen(Bool)
                 if Debounce then
                     return
@@ -3589,8 +3605,27 @@ local Settings = {
 
                 Debounce = true
 
+                if OpenMotion then OpenMotion:Cancel(); OpenMotion = nil end
+                if LogoMotion then LogoMotion:Cancel(); LogoMotion = nil end
+                local Body, Logo = Items["Body"].Instance, Items["WindowIcon"] and Items["WindowIcon"].Instance
+                Body.Position = UDim2FromOffset(0, 0)
+                if Logo then Logo.Rotation = 0 end
+
                 if Window.IsOpen then
                     Items["MainFrame"].Instance.Visible = true
+                    local Duration = MathClamp(Library.FadeSpeed * 2, 0, 0.3)
+                    if Duration > 0 then
+                        -- Animate the inner body so dragging and saved window coordinates stay exact.
+                        Body.Position = UDim2FromOffset(0, 6)
+                        local Info = TweenInfo.new(Duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                        OpenMotion = TweenService:Create(Body, Info, {Position = UDim2FromOffset(0, 0)})
+                        OpenMotion:Play()
+                        if Logo then
+                            Logo.Rotation = -18
+                            LogoMotion = TweenService:Create(Logo, Info, {Rotation = 0})
+                            LogoMotion:Play()
+                        end
+                    end
                 end
 
                 local Descendants = Items["MainFrame"].Instance:GetDescendants()
@@ -3871,36 +3906,6 @@ local Settings = {
                 })
                 Items["ActiveBorder"]:AddToTheme({Color = "Outline"})
                 Library:StyleSurface(Items["Accent"], "Element", "Inline", 5, false)
-                Items["Categories"] = Instances:Create("ScrollingFrame", {
-                    Parent = Page.Window.Items["TabHost"].Instance, BackgroundTransparency = 1,
-                    BorderSizePixel = 0, Size = UDim2New(1, 0, 1, 0), CanvasSize = UDim2FromOffset(0, 0),
-                    ScrollingDirection = Enum.ScrollingDirection.X, ScrollBarThickness = 2, Visible = false
-                })
-                Items["Categories"]:AddToTheme({ScrollBarImageColor3 = "Outline"})
-                Items["TabStrip"] = Instances:Create("Frame", {
-                    Parent = Items["Categories"].Instance, BorderSizePixel = 0, BackgroundTransparency = 1,
-                    Position = UDim2FromOffset(0, 1), Size = UDim2FromOffset(100, 34)
-                })
-                Items["TabStrip"]:AddToTheme({BackgroundColor3 = "Inline"})
-                Items["TabLayout"] = Instances:Create("UIListLayout", {
-                    Parent = Items["TabStrip"].Instance, Padding = UDimNew(0, 14),
-                    FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Left,
-                    VerticalAlignment = Enum.VerticalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder
-                })
-                local function UpdateTabStrip()
-                    local Scale = IsMobile and 0.7 or 1
-                    local Available = Items["Categories"].Instance.AbsoluteSize.X / Scale
-                    local Width = math.ceil(Items["TabLayout"].Instance.AbsoluteContentSize.X / Scale - 0.0001)
-                    Items["TabStrip"].Instance.Size = UDim2FromOffset(Width, 28)
-                    Items["TabStrip"].Instance.Position = UDim2FromOffset(math.max(0, MathFloor((Available - Width) / 2)), 0)
-                    Items["Categories"].Instance.CanvasSize = UDim2FromOffset(math.max(Available, Width), 0)
-                    local Scroll = Items["Categories"].Instance.CanvasPosition.X
-                    Items["Categories"].Instance.CanvasPosition = Vector2New(MathClamp(Scroll, 0, math.max(0, Width - Available)), 0)
-                end
-                Library:Connect(Items["TabLayout"].Instance:GetPropertyChangedSignal("AbsoluteContentSize"), UpdateTabStrip)
-                Library:Connect(Items["Categories"].Instance:GetPropertyChangedSignal("AbsoluteSize"), UpdateTabStrip)
-                UpdateTabStrip()
-
                 Page.ColumnsData[1] = Items["LeftColumn"]
                 Page.ColumnsData[2] = Items["RightColumn"]
 
@@ -3918,7 +3923,6 @@ local Settings = {
                 Page.Active = Bool
                 Items["Page"].Instance.Visible = Bool
                 Items["Page"].Instance.Parent = Bool and Page.Window.Items["Content"].Instance or Library.UnusedHolder.Instance
-                Items["Categories"].Instance.Visible = Bool
                 Items["NavMarker"].Instance.Visible = false
                 Items["ActiveBorder"]:Tween(nil, {Transparency = Bool and 0.15 or 1})
                 Items["NavText"]:ChangeItemTheme({TextColor3 = Bool and "Text" or "Dark Text"})
@@ -4115,6 +4119,7 @@ local Settings = {
                     Position = UDim2FromOffset(0, 30), Size = UDim2New(1, 0, 0, 20)
                 })
                 Library:StyleSurface(Items["Card"], "Inline", "Background", 5, true)
+                Library:SetPanelCorners(Items["Card"], 10, 3, 10, 3)
                 Items["Content"] = Instances:Create("Frame", {
                     Parent = Items["Card"].Instance,
                     Name = "\0",
@@ -4163,56 +4168,6 @@ local Settings = {
 
                 Items["IconBackground"].Instance.Visible = true
                 Items["Chevron"].Instance.ImageTransparency = 0.45
-                Items["Category"] = Instances:Create("TextButton", {
-                    Parent = Section.Page.Items["TabStrip"].Instance,
-                    Size = UDim2FromOffset(0, 28), AutomaticSize = Enum.AutomaticSize.X, BorderSizePixel = 0, BackgroundTransparency = 1,
-                    Text = Section.Name, FontFace = Library.Font, TextSize = 12,
-                    TextXAlignment = Enum.TextXAlignment.Center,
-                    AutoButtonColor = false, LayoutOrder = #Section.Page.SectionList
-                })
-                Items["Category"]:AddToTheme({TextColor3 = "Dark Text", BackgroundColor3 = "Accent"})
-                Instances:Create("UIPadding", {Parent = Items["Category"].Instance, PaddingLeft = UDimNew(0, 3), PaddingRight = UDimNew(0, 3)})
-                Instances:Create("UICorner", {Parent = Items["Category"].Instance, CornerRadius = UDimNew(0, 5)})
-                Items["CategoryMarker"] = Instances:Create("Frame", {
-                    Parent = Items["Category"].Instance, BorderSizePixel = 0, Size = UDim2New(1, -6, 0, 2), AnchorPoint = Vector2New(0.5, 1),
-                    Position = UDim2New(0.5, 0, 1, 0), Visible = false
-                })
-                Items["CategoryMarker"]:AddToTheme({BackgroundColor3 = "Accent"})
-                Items["Category"]:OnHover(function()
-                    if Section.Page.SelectedCategory ~= Section.Name then Items["Category"]:Tween(nil, {BackgroundTransparency = 0.98}) end
-                end)
-                Items["Category"]:OnHoverLeave(function()
-                    Items["Category"]:Tween(nil, {BackgroundTransparency = 1})
-                end)
-                local function SelectCategory(Scroll)
-                    Section.Page.SelectedCategory = Section.Name
-                    if Scroll or Section.Page.PendingCategory == Section.Name then Section.Page.PendingCategory = nil end
-                    for _, Other in Section.Page.SectionList do
-                        Other.Items["CategoryMarker"].Instance.Visible = Other == Section
-                        local Button = Other.Items["Category"]
-                        if Button then
-                            Button.Instance.BackgroundTransparency = 1
-                            Button:ChangeItemTheme({TextColor3 = Other == Section and "Text" or "Dark Text", BackgroundColor3 = "Accent"})
-                            Button.Instance.TextColor3 = Other == Section and Library.Theme.Text or Library.Theme["Dark Text"]
-                        end
-                    end
-                    Items["CategoryMarker"].Instance.Visible = true
-                    Items["Category"].Instance.BackgroundTransparency = 1
-                    Items["Category"]:ChangeItemTheme({TextColor3 = "Text", BackgroundColor3 = "Accent"})
-                    Items["Category"].Instance.TextColor3 = Library.Theme.Text
-                    if Section.Page.Active then
-                        Section.Window.Items["PageTitle"].Instance.Text = Section.Name
-                    end
-                    if Scroll then
-                        Section:SetCollapse(true)
-                        local Column = Section.Page.ColumnsData[Section.Side].Instance
-                        local Y = Items["Section"].Instance.AbsolutePosition.Y - Column.AbsolutePosition.Y + Column.CanvasPosition.Y
-                        Column.CanvasPosition = Vector2New(0, MathClamp(Y, 0, math.max(0, Column.AbsoluteCanvasSize.Y - Column.AbsoluteWindowSize.Y)))
-                    end
-                end
-                Items["Category"]:Connect("Activated", function() SelectCategory(true) end)
-                if #Section.Page.SectionList == 0 or Section.Page.PendingCategory == Section.Name then SelectCategory(false) end
-
                 Section.Items = Items
             end
 
@@ -4293,21 +4248,31 @@ local Settings = {
                     CornerRadius = UDimNew(0, 2)
                 })
 
-                Items["CheckImage"] = Instances:Create("ImageLabel", {
-                    Parent = Items["Accent"].Instance,
-                    Name = "\0",
-                    ImageColor3 = FromRGB(0, 0, 0),
-                    ImageTransparency = 1,
-                    BorderColor3 = FromRGB(0, 0, 0),
+                -- A clipped quarter-circle with rind and a radial seam; no image asset required.
+                Items["CitrusMark"] = Instances:Create("Frame", {
+                    Parent = Items["Indicator"].Instance, BackgroundTransparency = 1,
+                    BorderSizePixel = 0, ClipsDescendants = true,
                     AnchorPoint = Vector2New(0.5, 0.5),
-                    Image = "rbxassetid://74979969250992",
-                    BackgroundTransparency = 1,
-                    Rotation = 0,
-                    Position = UDim2New(0.5, 0, 0.5, 0),
-                    Size = UDim2New(0, 8, 0, 8),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = FromRGB(255, 255, 255)
+                    Position = UDim2New(0.5, -0.5, 0.5, -0.5), Size = UDim2FromOffset(9, 9)
                 })
+                Items.CitrusParts = {}
+                for _, Part in {{"Rind", 0, 18, "Text"}, {"Pith", 2, 14, "Accent"}, {"Flesh", 3, 12, "Text"}} do
+                    local Circle = Instances:Create("Frame", {
+                        Parent = Items["CitrusMark"].Instance, Name = Part[1], BorderSizePixel = 0,
+                        BackgroundTransparency = 1, Position = UDim2FromOffset(Part[2], Part[2]),
+                        Size = UDim2FromOffset(Part[3], Part[3])
+                    })
+                    Circle:AddToTheme({BackgroundColor3 = Part[4]})
+                    Instances:Create("UICorner", {Parent = Circle.Instance, CornerRadius = UDimNew(0.5, 0)})
+                    TableInsert(Items.CitrusParts, Circle)
+                end
+                local Seam = Instances:Create("Frame", {
+                    Parent = Items["CitrusMark"].Instance, Name = "SegmentSeam", BorderSizePixel = 0,
+                    BackgroundTransparency = 1, AnchorPoint = Vector2New(0.5, 0.5),
+                    Position = UDim2FromOffset(6.5, 6.5), Size = UDim2FromOffset(1, 7), Rotation = -45
+                })
+                Seam:AddToTheme({BackgroundColor3 = "Accent"})
+                TableInsert(Items.CitrusParts, Seam)
 
                 Items["Text"] = Instances:Create("TextLabel", {
                     Parent = Items["Toggle"].Instance,
@@ -4354,7 +4319,6 @@ local Settings = {
 
                 Library:StyleSurface(Items["Indicator"], "Element", "Inline", 3, true)
                 Library:StyleSurface(Items["Accent"], "Accent", "Accent", 3, false)
-                Items["CheckImage"]:AddToTheme({ImageColor3 = "Text"})
                 Library:FitRowText(Items, 22)
 
                 Items["Toggle"]:OnHover(function()
@@ -4382,12 +4346,16 @@ local Settings = {
                     Items["Accent"]:Tween(TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0, Size = UDim2New(1, 0, 1, 0)})
                     Items["Text"]:ChangeItemTheme({TextColor3 = "Text"})
                     Items["Text"]:Tween(nil, {TextColor3 = Library.Theme.Text})
-                    Items["CheckImage"]:Tween(nil, {Rotation = 0, ImageTransparency = 0})
                 else
                     Items["Accent"]:Tween(TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1, Size = UDim2New(0, 0, 0, 0)})
                     Items["Text"]:ChangeItemTheme({TextColor3 = "Text"})
                     Items["Text"]:Tween(nil, {TextColor3 = Library.Theme["Text"]})
-                    Items["CheckImage"]:Tween(nil, {Rotation = 0, ImageTransparency = 1})
+                end
+
+                for _, Part in Items.CitrusParts do
+                    Part:Tween(TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = Toggle.Value and 0 or 1
+                    })
                 end
 
                 if Toggle.Callback then
