@@ -4248,31 +4248,21 @@ local Settings = {
                     CornerRadius = UDimNew(0, 2)
                 })
 
-                -- A clipped quarter-circle with rind and a radial seam; no image asset required.
-                Items["CitrusMark"] = Instances:Create("Frame", {
-                    Parent = Items["Indicator"].Instance, BackgroundTransparency = 1,
-                    BorderSizePixel = 0, ClipsDescendants = true,
+                Items["CheckImage"] = Instances:Create("ImageLabel", {
+                    Parent = Items["Accent"].Instance,
+                    Name = "\0",
+                    ImageColor3 = FromRGB(0, 0, 0),
+                    ImageTransparency = 1,
+                    BorderColor3 = FromRGB(0, 0, 0),
                     AnchorPoint = Vector2New(0.5, 0.5),
-                    Position = UDim2New(0.5, -0.5, 0.5, -0.5), Size = UDim2FromOffset(9, 9)
+                    Image = "rbxassetid://74979969250992",
+                    BackgroundTransparency = 1,
+                    Rotation = 0,
+                    Position = UDim2New(0.5, 0, 0.5, 0),
+                    Size = UDim2New(0, 8, 0, 8),
+                    BorderSizePixel = 0,
+                    BackgroundColor3 = FromRGB(255, 255, 255)
                 })
-                Items.CitrusParts = {}
-                for _, Part in {{"Rind", 0, 18, "Text"}, {"Pith", 2, 14, "Accent"}, {"Flesh", 3, 12, "Text"}} do
-                    local Circle = Instances:Create("Frame", {
-                        Parent = Items["CitrusMark"].Instance, Name = Part[1], BorderSizePixel = 0,
-                        BackgroundTransparency = 1, Position = UDim2FromOffset(Part[2], Part[2]),
-                        Size = UDim2FromOffset(Part[3], Part[3])
-                    })
-                    Circle:AddToTheme({BackgroundColor3 = Part[4]})
-                    Instances:Create("UICorner", {Parent = Circle.Instance, CornerRadius = UDimNew(0.5, 0)})
-                    TableInsert(Items.CitrusParts, Circle)
-                end
-                local Seam = Instances:Create("Frame", {
-                    Parent = Items["CitrusMark"].Instance, Name = "SegmentSeam", BorderSizePixel = 0,
-                    BackgroundTransparency = 1, AnchorPoint = Vector2New(0.5, 0.5),
-                    Position = UDim2FromOffset(6.5, 6.5), Size = UDim2FromOffset(1, 7), Rotation = -45
-                })
-                Seam:AddToTheme({BackgroundColor3 = "Accent"})
-                TableInsert(Items.CitrusParts, Seam)
 
                 Items["Text"] = Instances:Create("TextLabel", {
                     Parent = Items["Toggle"].Instance,
@@ -4319,6 +4309,7 @@ local Settings = {
 
                 Library:StyleSurface(Items["Indicator"], "Element", "Inline", 3, true)
                 Library:StyleSurface(Items["Accent"], "Accent", "Accent", 3, false)
+                Items["CheckImage"]:AddToTheme({ImageColor3 = "Text"})
                 Library:FitRowText(Items, 22)
 
                 Items["Toggle"]:OnHover(function()
@@ -4346,16 +4337,12 @@ local Settings = {
                     Items["Accent"]:Tween(TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0, Size = UDim2New(1, 0, 1, 0)})
                     Items["Text"]:ChangeItemTheme({TextColor3 = "Text"})
                     Items["Text"]:Tween(nil, {TextColor3 = Library.Theme.Text})
+                    Items["CheckImage"]:Tween(nil, {Rotation = 0, ImageTransparency = 0})
                 else
                     Items["Accent"]:Tween(TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1, Size = UDim2New(0, 0, 0, 0)})
                     Items["Text"]:ChangeItemTheme({TextColor3 = "Text"})
                     Items["Text"]:Tween(nil, {TextColor3 = Library.Theme["Text"]})
-                end
-
-                for _, Part in Items.CitrusParts do
-                    Part:Tween(TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                        BackgroundTransparency = Toggle.Value and 0 or 1
-                    })
+                    Items["CheckImage"]:Tween(nil, {Rotation = 0, ImageTransparency = 1})
                 end
 
                 if Toggle.Callback then
